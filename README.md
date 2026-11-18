@@ -12,12 +12,34 @@ This project is the attempt to build one.
 
 ## Status
 
-**Planning.** No application code yet. The feasibility analysis of the Android
-implementation, and the migration plan derived from it, live in
-[`docs/IOS-MIGRATION.md`](docs/IOS-MIGRATION.md) — read that first, including its
-go/no-go verdict and the blockers behind it. iOS withholds several platform
-capabilities the Android app relies on, so the plan is explicit about which features
-port, which degrade, and which cannot exist on iOS at all.
+**Analysis done, not started, and conditional on an experiment nobody has run yet.**
+No application code exists.
+
+The analysis is in [`docs/IOS-MIGRATION.md`](docs/IOS-MIGRATION.md) and its conclusion
+is worth stating up front rather than burying:
+
+> A faithful iOS port is not viable. A reduced, sideload-only port may be viable, and a
+> two-to-four-day experiment with physical glasses decides it.
+
+Three findings drive that:
+
+- **The glasses speak classic Bluetooth RFCOMM** (Serial Port Profile). iOS gives
+  third-party apps no RFCOMM API at all; the only classic-Bluetooth data path is
+  ExternalAccessory, which works solely with MFi-certified accessories. There is no BLE
+  data path and no Wi-Fi link to the phone anywhere in the protocol. Whether Focals are
+  MFi accessories is the single question the whole project hangs on — there is suggestive
+  evidence in the Android source, and it is unconfirmed.
+- **App Store distribution is unavailable** under any outcome: an MFi accessory's
+  manufacturer decides which apps may connect to it, and North is defunct.
+- **Mirroring other apps' notifications cannot be ported.** iOS has no equivalent of
+  Android's notification listener, so the feature most owners would want is the one
+  least likely to exist.
+
+What would survive: connecting, battery and Loop state, calibration, the tunnelled
+network proxy and the mocked cloud behind it (notes, tasks, weather, teleprompter,
+live subtitles), file transfer, location, Apple Music control.
+
+Nothing here has been tested against real hardware, because there is none on hand.
 
 ## Relationship to the Android app
 

@@ -29,6 +29,21 @@ frameworks.
   behaviour is **described in our own words** in our own docs, with a pointer to the
   upstream file that was read, and reimplemented from that description.
 
+## Two cautions about reading it
+
+**It contains live private keys, despite saying it does not.** The upstream README states
+that the author stripped the certificates and private keys before publishing. They are
+still in the source: two RSA private keys and their certificates are embedded in
+`commutils/ssl/SSLInterceptDataHandler.java`, used to terminate TLS for the intercepted
+cloud. Both are expired. Do not copy them anywhere, do not reuse them, and do not let them
+reach this repository or any build published from it — a port needs its own domain and its
+own certificate regardless, so there is nothing to gain by touching theirs.
+
+**Its certificate expiry has probably already broken the Android app.** The embedded leaf
+for `cloud.ofocals.com` expired on 2023-01-03, which means the cloud-mocking features it
+documents may no longer work upstream either. Treat behaviour described in its docs as a
+record of how things worked, not of how they work.
+
 ## Local reference clone
 
 A clone of the upstream repository is kept **outside this repository** for reading,

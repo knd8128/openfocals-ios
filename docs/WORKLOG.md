@@ -27,5 +27,17 @@ Newest entry first.
 
 - MIT licence added (Abraham's call), covering our work only.
 
-**Next.** Read the plan's verdict and decide whether to pursue the port, and in what
-scope.
+**What the analysis concluded.** A faithful port is not viable; a reduced sideload-only
+port is conditional on one short experiment with hardware. The transport is classic
+Bluetooth RFCOMM (SPP), which iOS does not expose to third-party apps, so the project
+hangs on whether Focals are an MFi accessory — suggestive but unconfirmed evidence in the
+Android source says maybe. Notification mirroring cannot be ported. App Store
+distribution is unavailable regardless.
+
+**Worth flagging.** The upstream README says the private keys and certificates were
+stripped before publishing; they were not — two RSA private keys and their certificates
+are still embedded in its source, both expired. Nothing was copied from them, and
+`docs/UPSTREAM.md` now warns future sessions off them.
+
+**Next.** Phase 0 only: acquire hardware, determine whether the glasses are MFi, and
+exchange one protocol message from an iPhone. See `docs/ROADMAP.md`.
