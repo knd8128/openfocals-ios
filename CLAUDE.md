@@ -19,6 +19,11 @@ and the whole shape of this project follows from it.
   cross the boundary, expression does not. See `docs/UPSTREAM.md`.
 - **This is a personal project**: the GitHub remote is `knd8128`, never `arubio-z`.
   Check `git remote -v` before any push.
+- **`reference/` never gets committed, and `reference/ios-app-container/` least of all.**
+  It is the real data container of North's iOS app recovered from Abraham's iPhone backup —
+  the evidence behind `docs/IOS-MIGRATION.md` §12 — and it contains an `id.bynorth.com` JWT
+  with his name and email, a Firebase token and his notification allow-list. Quote findings
+  from it; never copy its files, its tokens or that allow-list into the repo.
 - **Public repository.** Nothing secret is committed: no certificates, no private keys,
   no API keys, no keystores. `Secrets.xcconfig` and `*.p8`/`*.p12`/`*.cer` are
   gitignored — keep it that way, and never work around it.

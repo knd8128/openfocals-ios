@@ -10,6 +10,19 @@ real glasses. Everything marked **ASSUMPTION** is inferred and unverified.
 two-to-four-day experiment with physical glasses decides it. Do not commit to anything past
 Phase 0 until that experiment passes.**
 
+> ⚠️ **Superseded in part on 2026-11-18 — read section 12 first.** The data container of
+> North's own iOS app was found on Abraham's Mac, recovered from an iPhone backup. The app
+> persisted the companion link as an **accessory name + serial number** and the notification
+> link as a **Core Bluetooth peripheral UUID**, which is the storage shape of
+> `ExternalAccessory` and `CBPeripheral` respectively. **H1 holds, H2 is dead: the glasses are
+> an MFi accessory and iOS talks to them over iAP2.** Consequences: the App Store is out for
+> good (point 2 below stands, and hardens), but the transport exists as a public API, so a
+> development-signed build is a real path rather than a hope. The bundle id is
+> `com.bynorth.companion`; the remaining unknown is the accessory **protocol string**, and the
+> glasses themselves can be asked for it (§12.4). The gate is no longer the IPA — it is
+> hardware. Point 1's "the likelier explanation is a custom BLE GATT channel" is now wrong;
+> point 3 is confirmed right (ANCS, §12.2).
+
 > **Read section 9 with this.** Added the same day from published sources: North shipped an
 > official **iOS** companion app, and the glasses displayed iPhone notifications. That does
 > not change the no-go on a faithful port or on the App Store, but it raises the odds on the
@@ -700,3 +713,118 @@ is about the ring, not the glasses. This avenue is closed; the `Info.plist` rema
 - Archived `bynorth.com` snapshots carrying both App Store links: http://web.archive.org/web/20200301000000/https://www.bynorth.com/
 - Recovering a delisted app from an account that acquired it, with `ipatool`: https://gist.github.com/minif/473310d7c556caadf4f2ed2d97389574
 - Internet Archive delisted-IPA collection (searched, no Focals): https://archive.org/details/various-mostly-delisted-ipas
+
+---
+
+## 12. The answer, from Abraham's own device: H1. The iOS app used ExternalAccessory
+
+Found 2026-11-18 by searching the whole Mac rather than the App Store. The data container of
+North's iOS companion app had been extracted from an iPhone backup in May 2025 and was sitting in
+`~/Downloads/focals`; it is preserved at `reference/ios-app-container/` (gitignored — see §12.5).
+No IPA, no Apple ID, no jailbreak was needed.
+
+### 12.1 The bundle id
+
+**`com.bynorth.companion`**, from the app's own preferences file
+(`reference/ios-app-container/com.bynorth.companion.plist`, 10 618 bytes, last written
+2020-06-01). The companion app recorded itself as version **1.114.1 (3377)** on **iOS 12.4**.
+
+### 12.2 The decisive evidence: how the app persisted each link
+
+The preferences hold two device identities, stored in two different shapes:
+
+| Key | Value | Shape |
+| --- | --- | --- |
+| `KCAncsManagerKey.PeripheralID` | `754C5196-4327-0CE3-1C1C-17D1A99A5A33` | a UUID |
+| `KCAncsManagerKey.AncsConnectionState` | `2` | |
+| `KCAncsManagerKey.HasConnectedOverAncs` | `1` | |
+| `KCKonaDeviceKey.SelectedAccessoryName` | `Focals - 00DW` | a name |
+| `KCKonaDeviceKey.SelectedAccessorySerialNumber` | `1f47080e` | a serial number |
+| `AnalyticsConnector.Key.accessoryConnected` | `0` | |
+| `AnalyticsConnector.Key.ancsBleState` | `connecting` | |
+
+**The persistence shape follows the API.** A Core Bluetooth client must store
+`CBPeripheral.identifier`, a UUID, because that is the only stable handle it gets for
+reconnection — which is exactly what the ANCS side stores, and the ANCS side is the only one the
+app calls "Ble". An `EAAccessory` has no such UUID; it exposes `name`, `manufacturer`,
+`modelNumber`, `serialNumber`, `firmwareRevision` and `protocolStrings`, so an ExternalAccessory
+client identifies a remembered accessory by **name and serial number** — which is exactly what
+the companion side stores, under the word Apple's own API uses, *accessory*.
+
+So the two links North used on iOS were:
+
+- **companion/BlackCoral link** → `ExternalAccessory` / iAP2 over classic Bluetooth, and
+  therefore **the glasses are an MFi accessory**;
+- **notification link** → Core Bluetooth, with the iPhone as ANCS server (section 9.2 stands).
+
+**H1 holds and H2 is dead.** This is inference from naming and storage shape, not yet a read of
+`UISupportedExternalAccessoryProtocols`, so it is **strong evidence, not proof** — but it is the
+same answer the IPA would have given, and §12.4 shows how to make it proof without one.
+
+### 12.3 What H1 actually costs, which is less than section 0 assumed
+
+The negative is unchanged: a companion app for the glasses **cannot ship on the App Store**,
+because review requires the developer to be authorised for the accessory's protocol string.
+The positive was underestimated:
+
+- **iOS can talk to these glasses, through a supported public API.** `ExternalAccessory` is not a
+  workaround; `EASession` gives an `InputStream`/`OutputStream` pair, which is precisely the
+  `ByteTransport` abstraction section 4 already defines. The MFi requirement is on the
+  *accessory hardware*, and the glasses satisfy it.
+- **Any app that declares the right protocol string can open that session** — including a
+  development-signed or sideloaded build. The gate is distribution, not capability.
+- Everything above the transport is unaffected. The protobuf layer, the framer, `GlassesLink`
+  and the cloud-intercept tunnel are the same work under H1 as under H2 (§11.3), and
+  `EATransport` was already the first implementation listed in section 4.
+
+### 12.4 The IPA is no longer the gate — the hardware is
+
+The one thing still missing is the **protocol string** itself (something of the form
+`com.bynorth.…`), which must go in our `Info.plist` under `UISupportedExternalAccessoryProtocols`
+for iOS to open the session. Two ways to get it, and the second no longer needs anyone's help:
+
+1. Read it from the IPA's `Info.plist` (§11) — still the only way to learn it *without* glasses.
+2. **Read it off the glasses.** `EAAccessoryManager.shared.connectedAccessories` returns every
+   paired MFi accessory, and `accessory.protocolStrings` lists what it speaks. Ten lines in a
+   development build on any iPhone, once a pair of Focals is bonded. The same call also *proves*
+   §12.2: if the glasses appear in that array at all, they are an MFi accessory and H1 is fact.
+
+Step 1 of the roadmap therefore changes from "get the IPA" to "get the glasses". Which leads to:
+
+### 12.5 Abraham owned a pair, and the firmware is on this Mac
+
+The same preferences identify the device the app was paired to:
+
+- name **`Focals - 00DW`**, id / serial **`1f47080e`**, hardware version **11**, software
+  **1.117.0-4559**, last cloud activity **2020-06-01**.
+
+And the OTA update the app had already downloaded is in the container:
+`reference/ios-app-container/61d834b3-d5b1-4d44-8ab7-d8b645dec150`, 8.0 MB, the signed update
+package for **Focals v1.119.0-4672**. It is an **Android delta OTA**: 202 entries, bsdiff `.p`
+patches, `pre-build-incremental=4559` → `post-build-incremental=4672`, built for
+`qcom/msm8909w:7.1.1/NMF26F` — so the glasses run **Android 7.1.1 on a Qualcomm msm8909w
+(Snapdragon Wear 2100)**. Patched components name the architecture plainly:
+`companion_service`, `bt_server`, `auth_service`, `black_coral_simulator`, `feature_manager`,
+`herald`, `explore_service`, `calendar_service`, `contact_service`, `alexa_service`.
+
+Two things follow. `Key.updateRequirement` is `{"minBlackCoralProtocolVersion":"4.40"}`, which
+confirms that the **`BC` of `BC.proto` is BlackCoral** and that the `versionMajor=4,
+versionMinor=40` handshake of section 2.2 is that protocol's version number. And because this is
+a delta package of patches rather than whole binaries, it cannot be string-searched for the
+protocol string; a full image would be needed.
+
+⚠️ **Nothing from `reference/ios-app-container/` is ever committed.** It is a real user
+container: it holds a (long-expired) `id.bynorth.com` JWT carrying Abraham's name and email, a
+Firebase messaging token, Instabug and Foursquare databases, and his notification allow-list.
+`reference/` is in `.gitignore`; that is deliberate and must stay.
+
+### 12.6 Prior art of his own: `~/Documents/projects/xcode/BLELab`
+
+An iOS project from September 2025 (`FocalsBluetoothClassicDevice.swift`, `FocalsDevice.swift`,
+`FocalsNetworkProxy.swift`, `FocalsConstants.swift`, `FOCALS_README.md`,
+`FocalsCorrectionsSummary.md`), not under git, with the upstream Java copied into `Focals/`. It
+reached the same wall from the other side — its own comments say "Focals uses Bluetooth Classic
+(RFCOMM), not BLE. iOS does not have public APIs for Bluetooth Classic. This implementation
+attempts BLE as fallback but will likely not work" — and it never tried `ExternalAccessory`;
+there is no `EAAccessory` reference anywhere in it and no sign it was ever run against hardware.
+Useful as a record of a dead end, not as a starting point. It is not vendored here.

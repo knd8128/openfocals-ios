@@ -12,43 +12,51 @@ This project is the attempt to build one.
 
 ## Status
 
-**Analysis done, not started, and hanging on one artifact nobody has found yet.** No
-application code exists.
+**Analysis done, no application code yet — but the question the project hung on is
+answered.** On 2026-11-18 the data container of North's own iOS companion app turned up on
+the owner's Mac, recovered from an old iPhone backup. It settles the transport.
 
-The analysis is in [`docs/IOS-MIGRATION.md`](docs/IOS-MIGRATION.md). It began as a mostly
-negative verdict and improved as evidence came in; the honest current reading:
+The analysis is in [`docs/IOS-MIGRATION.md`](docs/IOS-MIGRATION.md); section 12 holds the
+finding and supersedes parts of the earlier verdict.
 
-> A faithful port of the Android app is not viable. A reduced iOS companion probably is.
-> Whether it could ever reach the App Store, or only ever be sideloaded, depends on a
-> question that one file would answer.
+### The question everything hung on, and its answer
 
-### The question everything hangs on
-
-North shipped an **official iOS app** for Focals (setup, settings, alignment, notification
-selection; iPhone 5S and newer, pulled from the App Store in July 2020). So an
-iPhone-to-glasses channel existed and worked. Two candidate explanations, and they have
-opposite consequences:
+North shipped an **official iOS app** for Focals, `com.bynorth.companion` (setup, settings,
+alignment, notification selection; iPhone 5S and newer, pulled from the App Store in July
+2020). So an iPhone-to-glasses channel existed. Two candidate explanations had opposite
+consequences:
 
 | | How the iOS app talked to the glasses | Consequence |
 | --- | --- | --- |
-| **H1** | iAP2 over ExternalAccessory | The glasses are an MFi accessory. Our app can likely open the same session, but **sideload only** — an MFi accessory's manufacturer decides which apps may connect, and North is defunct |
-| **H2** | A custom BLE GATT service | **No MFi involved.** Core Bluetooth is enough, and App Store distribution is back on the table |
+| **H1** | iAP2 over ExternalAccessory | The glasses are an MFi accessory. Our app can open the same session, but **sideload only** — App Store review requires the developer to be authorised for the accessory's protocol string, and North is defunct |
+| **H2** | A custom BLE GATT service | No MFi involved. Core Bluetooth would be enough, and App Store distribution would be back on the table |
 
-The deciding artifact is an archived copy of North's iOS app: if its `Info.plist` declares
-`UISupportedExternalAccessoryProtocols`, it is H1; if not, H2. That is the cheapest, highest
--value step in this project — **it needs no glasses** — and it is ahead of buying hardware.
+**It is H1.** The app stored the companion link as an **accessory name and serial number**
+(`Focals - 00DW` / `1f47080e`) and the notification link as a **Core Bluetooth peripheral
+UUID**. Those are the storage shapes of `EAAccessory` and `CBPeripheral`: a Core Bluetooth
+client must persist the peripheral's UUID to reconnect, while an ExternalAccessory client has
+no UUID and identifies an accessory by name and serial. The app also calls only the
+notification side "Ble". Evidence, not yet proof — reading
+`UISupportedExternalAccessoryProtocols` out of the app binary would be proof — but it points
+one way and matches everything else known.
 
-Evidence for H2 is now the stronger side: the glasses are a confirmed dual-mode radio
-(classic BR/EDR *and* BLE, per their FCC test report), their firmware demonstrably acts as a
-BLE central/GATT client, and the captured Bluetooth service record shows the Android
-companion channel is plain Serial Port Profile with **no iAP2 service advertised** — the
-custom UUID that first suggested iAP2 turns out to be the Focals SPP service's own class.
+What that means in practice:
+
+- **The App Store is out, permanently.** Distribution is development-signed or sideloaded.
+- **iOS can nevertheless talk to these glasses, through a public API.** `EASession` hands back
+  an `InputStream`/`OutputStream` pair, which is exactly the byte transport the planned
+  architecture is built around. The MFi requirement falls on the accessory hardware, and the
+  glasses meet it.
+- **The next gate is hardware, not the IPA.** The one missing detail is the accessory protocol
+  string, and a ten-line development build can ask a bonded pair of glasses for it directly
+  (`EAAccessoryManager.connectedAccessories` → `protocolStrings`) — which would also turn the
+  inference above into fact.
 
 ### What is settled
 
 - **The Android transport is classic Bluetooth RFCOMM (SPP)**, which iOS does not expose to
-  third-party apps at all. If H1 and H2 both fail, an iPhone cannot talk to these glasses
-  without carrying a bridge device, and that is a no-go.
+  third-party apps directly. iOS reaches the same classic-Bluetooth link only through
+  ExternalAccessory — which, per the finding above, is what North's own app did.
 - **Notification mirroring works, and needs no code from us.** The glasses' own Bluetooth
   schema carries ANCS state, so the firmware is an ANCS client: paired to an iPhone, it
   receives notifications straight from iOS over BLE, with ANCS's reduced action set. This

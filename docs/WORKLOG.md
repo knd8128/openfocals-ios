@@ -77,3 +77,37 @@ Goal: the one artifact that decides H1 vs H2 (iAP2/MFi vs custom BLE GATT), name
 
 Recorded as `docs/IOS-MIGRATION.md` §11.5 and a dated entry in `docs/ROADMAP.md`. Next lever is
 the older Apple ID that was signed in when Focals was installed on his iPhone.
+
+## 2026-11-18 (second entry) — The transport question is answered: ExternalAccessory/iAP2
+
+The App Store route to North's IPA was exhausted (see the entry above), so the search widened
+from Apple's servers to the machine itself. A Spotlight sweep for anything Focals-related
+found `~/Downloads/focals`: the **data container of `com.bynorth.companion`**, North's own iOS
+app, extracted from an iPhone backup in May 2025 and forgotten there.
+
+What it settles, in one line: the app persisted the companion link as an **accessory name and
+serial number** and the notification link as a **Core Bluetooth peripheral UUID** — the storage
+shapes of `EAAccessory` and `CBPeripheral`. **H1 holds, H2 is dead.** The glasses are an MFi
+accessory; the App Store is out for good; `EASession` is a supported transport for a
+development-signed build, and the architecture's `ByteTransport` split survives untouched.
+
+Also recovered from the same container:
+
+- the bundle id `com.bynorth.companion`, app 1.114.1 (3377) on iOS 12.4, last active 2020-06-01;
+- **Abraham owned a pair**: `Focals - 00DW`, serial `1f47080e`, hardware v11, software
+  1.117.0-4559. Whether they still exist is now the project's gate;
+- the signed **OTA package for firmware 1.119.0-4672** (8 MB): an Android delta OTA for
+  `qcom/msm8909w:7.1.1`, so the glasses are Android 7.1.1 on a Snapdragon Wear 2100. Patched
+  components include `companion_service`, `bt_server`, `auth_service`, `black_coral_simulator`;
+- `minBlackCoralProtocolVersion: 4.40`, which confirms **BC = BlackCoral** and ties the
+  `versionMajor=4, versionMinor=40` handshake to that protocol's own version number.
+
+The container was copied to `reference/ios-app-container/` (gitignored) so it survives a
+Downloads cleanup, and `CLAUDE.md` gained a rule that nothing from it is ever committed — it
+holds an expired `id.bynorth.com` JWT with his name and email, a Firebase token and his
+notification allow-list.
+
+Written up as `docs/IOS-MIGRATION.md` §12, with a superseding banner on §0. `README.md`'s
+status, the roadmap's *Now* and the decision register were rewritten to match. Also recorded:
+`~/Documents/projects/xcode/BLELab`, an earlier Core Bluetooth attempt of his from September
+2025 that never tried ExternalAccessory — a closed dead end, not vendored.

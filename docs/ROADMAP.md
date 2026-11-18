@@ -6,53 +6,33 @@ decisions to *not* do something.
 
 ## Now
 
-The plan's gate is unchanged but its order has: the decisive step no longer needs glasses.
+The transport question is answered (`docs/IOS-MIGRATION.md` §12): North's iOS app used
+**ExternalAccessory/iAP2**, so the glasses are an MFi accessory. The App Store is out; a
+development-signed app is a real path. The gate is now **hardware**.
 
-1. **Get a copy of North's iOS companion app, `id1438872705`, and read its `Info.plist`.**
-   No hardware, and it answers the question the whole project hangs on:
-   `UISupportedExternalAccessoryProtocols` present means iAP2/MFi and sideload-only; absent
-   means a custom BLE GATT companion, Core Bluetooth, no MFi, and App Store distribution back
-   on the table. **Do this before spending money on hardware.**
+1. **Find out whether the Focals still exist.** Abraham owned a pair — `Focals - 00DW`,
+   serial `1f47080e`, hardware v11, software 1.117.0-4559, last used 2020-06-01 — proven by
+   the app container recovered from his iPhone backup. If that pair is in a drawer, the
+   project is unblocked today and step 2 of the old plan disappears. If not, buying a used
+   pair returns as the long-lead item (sold 2019–2020, North America only).
+2. **Ask the glasses for their accessory protocol string.** A development build on any iPhone:
+   bond the glasses, then `EAAccessoryManager.shared.connectedAccessories` and read
+   `name`, `serialNumber`, `firmwareRevision` and `protocolStrings`. Half a day. It yields the
+   string our `Info.plist` needs, and it converts §12's inference into proof — if the glasses
+   appear in that array, they are MFi, full stop.
+3. **Open an `EASession` and exchange one protocol message.** The handshake is
+   `EstablishConnection{versionMajor: 4, versionMinor: 40}` (confirmed independently: the OTA
+   metadata requires `minBlackCoralProtocolVersion 4.40`). This is the old step 4 and it is
+   still the point past which nothing should be built.
+4. **Stand up `pycompanion` against the glasses** from a Linux box or a Raspberry Pi — the
+   author's working Python companion, cheaper than Swift for learning the protocol.
 
-   Searched on 2026-11-17 and **not publicly archived** (section 11 of the plan has the full
-   negative result: Apple's API returns nothing, no Wayback snapshot of the store page,
-   nothing in Internet Archive's delisted-IPA collections, `support.bynorth.com` no longer
-   resolves). But the bar turned out to be much lower than assumed:
+Obsolete: getting North's IPA. It was only ever a way to learn the protocol string without
+hardware, and §11 showed it is not publicly archived, not on Abraham's current Apple ID, and
+not re-acquirable (the app is withdrawn from sale, so Apple grants no new licence). Keep it as
+a fallback if hardware never materialises and someone who still owns a copy turns up.
 
-   - An **encrypted** store IPA is enough — FairPlay leaves `Info.plist` in plaintext, so no
-     jailbreak and no decryption are needed, just `unzip` and `plutil`.
-   - Apple still serves delisted apps to Apple IDs that previously acquired them (free apps
-     count), retrievable with `ipatool`.
-
-   **Tried 2026-11-18 with Abraham's own Apple ID `rza8128@hotmail.com`: no licence.** All 961
-   purchases of that account listed, no Focals; `download` answers `license is required`, and
-   `--purchase` cannot create one because the app is withdrawn from sale (section 11.5). The
-   offloaded Focals icon on his iPhone was installed under an **older Apple ID**, and an
-   offloaded icon survives an account change, so the licence lives on that account.
-
-   **Next step, in order:**
-   a. `ipatool auth revoke`, then `ipatool auth login -e <the older Apple ID>` in Terminal.app
-      (the session's inline shell has no TTY), and retry `download -i 1438872705`. Zero cost,
-      minutes, and it is the only path that does not involve other people.
-   b. If no account of his holds it, the blocker becomes social: **one person who installed the
-      Focals app on an iPhone before 2020-07-31 can produce the answer in minutes.** Ask the
-      author of `openfocals` and `focals_utils` first — he reverse-engineered the Android side
-      and may simply know, or hold the iOS build — then the openfocals issue tracker and Focals
-      owner communities. *(Pending Abraham's go-ahead: contacting people is an outward-facing
-      action.)*
-2. **Acquire Focals hardware** — still needed for everything past the IPA, and the long-lead
-   item (sold 2019–2020, North America only). Start looking in parallel with 1.
-3. **Scan the glasses' BLE GATT services** with any BLE explorer. Minutes of work, and it
-   tests H2 directly: a companion-grade service beyond the Loop- and ANCS-facing roles is
-   what a custom-BLE port would use.
-4. **Exchange one protocol message from an iPhone**, over whichever path 1 and 3 indicate.
-   Two to four days once there is hardware. Nothing past this point is worth building first.
-5. **Stand up `pycompanion` against the glasses** from a Linux box or a Raspberry Pi. It is
-   the author's working Python companion and the glasses accept it in place of the phone app:
-   cheaper than writing Swift to learn the protocol, and it validates our understanding of
-   framing, handshake, settings and features before any app code exists.
-
-Do not build UI and do not write feature code before 4 passes.
+Do not build UI and do not write feature code before 3 passes.
 
 ## Blocked on hardware
 
@@ -76,6 +56,30 @@ that do not need a device.
   instead.
 
 ## Decision register
+
+### 2026-11-18 — The transport is settled: ExternalAccessory/iAP2, found on Abraham's own Mac
+
+**Decided:** treat H1 as established and stop hunting the IPA; make hardware the gate.
+**Why:** a Spotlight sweep of the whole Mac turned up `~/Downloads/focals`, the data container
+of `com.bynorth.companion` extracted from an iPhone backup in May 2025. It stores the companion
+link as accessory name + serial and the ANCS link as a Core Bluetooth peripheral UUID — the
+persistence shapes of `EAAccessory` and `CBPeripheral`. **Consequences:** the App Store is out
+permanently; `EASession` is a supported path for a development-signed build; the planned
+`FocalsTransport`/`EATransport` split was right. **Next step:** find out whether his pair of
+Focals still exists, then read `protocolStrings` off them. **Status:** agreed. Full write-up in
+`docs/IOS-MIGRATION.md` §12.
+
+**Also decided:** keep the recovered container at `reference/ios-app-container/` (gitignored)
+rather than in `~/Downloads`, where it would eventually be cleaned out, and never commit any of
+it — it holds an expired `id.bynorth.com` JWT with his name and email, a Firebase token and his
+notification allow-list. Rule added to `CLAUDE.md`.
+
+**Also recorded:** `~/Documents/projects/xcode/BLELab` is an earlier attempt of his own
+(September 2025) that tried Core Bluetooth, documented in its own comments that classic
+Bluetooth has no iOS API, and never tried ExternalAccessory. Not vendored, not a starting
+point; noted so a future session does not rediscover it. **Status:** closed.
+
+
 
 ### 2026-11-18 — The IPA is not on Abraham's current Apple ID; one older account left to try
 
