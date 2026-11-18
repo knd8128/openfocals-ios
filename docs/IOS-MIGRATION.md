@@ -529,7 +529,9 @@ The companion service is **"Focals SPP Service", RFCOMM, service-classes `1101` 
   excluded. The archived IPA's `Info.plist` settles it directly: `UISupportedExternalAccessoryProtocols`
   present ⇒ H1 (iAP2/ExternalAccessory, sideload-only); absent ⇒ H2 (custom BLE GATT, Core
   Bluetooth, no MFi, App Store possible). This is still the highest-value no-hardware step, and
-  section 9.3 already names where to look.
+  section 9.3 already names where to look. **Searched — see section 11:** not in any public
+  archive, but an *encrypted* store copy suffices (FairPlay leaves `Info.plist` in plaintext),
+  so any 2019-2020 Focals owner's Apple ID can still retrieve it with `ipatool`.
 
 ### 10.8 WRITEUP.md firmware inventory — effect on the feature table
 
@@ -569,3 +571,90 @@ All citations are into `aegray/focals_utils` at the clone path above:
 `connector/{notes.txt,bootloader.txt}`, `glasses/updating/update_process.txt`, `WRITEUP.md`,
 and the FCC PDFs under `info/fcc/tl1a/` and `tl1b/` (public filings, fccid.io `2ACKV-TL1A` /
 `2ACKV-TL1B`).
+
+## 11. The IPA hunt, 2026-11-17: not found publicly, and the bar is lower than assumed
+
+Section 9.3 named the archived iOS IPA as the project's cheapest decisive artifact. It was
+searched for. **It is not in any public archive reachable today**, but two things found along the
+way change how to get it and what it has to be.
+
+### 11.1 What was searched, and the outcome
+
+- **The App Store IDs were recovered.** An archived `bynorth.com` snapshot (Wayback,
+  2020-03-01 and 2019-12-01) links two Apple apps: the **companion app, `id1438872705`**, and
+  **Focals Showroom, `id1469387338`** (the TrueDepth sizing app, not the companion — do not
+  confuse them, section 9.1).
+- **Both are fully delisted.** `itunes.apple.com/lookup?id=…` returns `resultCount: 0` for each.
+- **No archived store page exists** for either, under any URL variant tried
+  (`itunes.apple.com/{us,ca}/app/focals/id…`, `itunes.apple.com/app/id…`,
+  `apps.apple.com/{us,ca}/app/focals/id…`, and prefix matches on `/app/focals`).
+- **`support.bynorth.com` is gone** — the host no longer resolves. Search engines still serve
+  cached copies of its pages, which is misleading; there is nothing live to read.
+- **Internet Archive holds no Focals IPA.** Its delisted-IPA and decrypted-app collections were
+  searched by name and by bundle prefix; the only hits for "focals" are podcast episodes. The
+  `yoloforks/ipa-archive` index has no match either.
+
+### 11.2 The bar is lower than section 9.3 assumed: an **encrypted** store IPA is enough
+
+Two facts, and together they move this from "find an archivist" to "find a person who owned a pair":
+
+- **FairPlay does not encrypt `Info.plist`.** App Store encryption covers the main executable's
+  text segment; the bundle's `Info.plist` and other resources ship in plaintext inside the IPA.
+  Reading `UISupportedExternalAccessoryProtocols` and `UIBackgroundModes` therefore needs **no
+  decryption, no jailbreak and no dumping tool** — a plain store download and `unzip` + `plutil`
+  answers H1 vs H2.
+- **Apple still serves delisted apps to Apple IDs that previously acquired them**, free apps
+  included; `ipatool` retrieves them even when the listing is gone and the app no longer appears
+  in the account's visible purchase list. Reported by developers recovering their own removed
+  apps; **ASSUMPTION** that it holds for this app in 2026, since it depends on Apple still having
+  the binary on file.
+
+**Consequence: the remaining blocker is social, not technical.** One person who installed the
+Focals companion app on an iPhone before 2020-07-31 can retrieve the artifact today, from an
+ordinary Mac, in minutes, with nothing jailbroken. Candidates: the author of `openfocals` and
+`focals_utils` (who reverse-engineered the Android side and may know the answer outright or hold
+the iOS build), the openfocals issue-tracker community, and Focals owner communities. Asking is
+free and settles the project's central question; it should precede buying hardware.
+
+### 11.3 New evidence from this session, both leaning H2 (custom BLE GATT, no MFi)
+
+**No Apple trademark attribution in the retail documentation.** The three user manuals filed
+with the FCC (`info/fcc/tl1a/Users-Manual-4092372.pdf`, `…-4092411.pdf`,
+`info/fcc/tl1b/Users-Manual-4092459.pdf`, 9 pages each) carry a full trademark notice in every
+page footer — "North, the North logo, Loop, and Focals are trademarks owned by North Inc." — and
+name **no Apple marks at all**, with no "Made for iPhone" badge anywhere in the text. They do
+state compatibility with "iPhones (5S and newer)… iOS versions 10+". An MFi licensee is
+contractually required to carry Apple's badge and trademark attribution in product
+documentation, so its absence from a manual that otherwise has a trademark section is meaningful
+evidence **against** H1. **ASSUMPTION/caveat:** these are the FCC-filed manuals, not the retail
+packaging art, and the `Label-and-Label-Location` PDFs are image-only with no extractable text,
+so a badge on the box cannot be ruled out from this material.
+
+**The protobuf schema is shared across both platforms, and names nothing Apple-specific.** A
+substring search across all five official-app schemas in `focals_utils/btmsgprotos/`
+(v1.81.1 → v1.115.0) plus `linuxtools/pycompanion/BC.proto` returns exactly four
+Apple-related identifiers — `AncsDeviceStatus`, `ancsStatus`, `AncsStatus`, `bundleId` — and
+**zero** occurrences of iAP, iAP2, MFi, Apple, iPhone or iOS. Three things follow:
+
+- `AncsDeviceStatus` is present in **every** version from v1.81 onward
+  (`focals_v1.115.0-2842.apk.bc.proto:88-103`), carried glasses→companion as field 23 of the
+  companion message union (`:499`) and inside `CompanionSync` as field 2 (`:678`), with the state
+  machine `LISTENING → ENUMERATING → PAIRING → PAIRING_COMPLETE → REGISTERING → CONNECTED`. The
+  glasses report their own ANCS progress **to the companion app over the companion channel**, so
+  on iOS the companion link and the ANCS BLE link coexisted rather than being the same channel.
+- These schemas were extracted from the **Android** app, which never uses ANCS. A single shared
+  cross-platform protocol definition is the only sensible explanation, so **the iOS companion
+  spoke this same protobuf protocol over a different transport**. **This is the most useful
+  conclusion of the section: our protocol work is transport-agnostic, and nothing in
+  `FocalsProtocol` or `FocalsLink` (section 4) is wasted whichever of H1/H2 turns out true.**
+  Only `FocalsTransport` depends on the answer.
+- `CompanionSms` carries `MarkSmsRead` as field 1 while `SendSms` is a separate top-level message
+  (`:24`). That is the reviewers' platform asymmetry (section 9.1 — iPhone could only mark a
+  message read, Android could reply) visible at schema level, which independently corroborates
+  that the iOS app drove this same protocol.
+
+### 11.4 Sources
+
+- Archived `bynorth.com` snapshots carrying both App Store links: http://web.archive.org/web/20200301000000/https://www.bynorth.com/
+- Recovering a delisted app from an account that acquired it, with `ipatool`: https://gist.github.com/minif/473310d7c556caadf4f2ed2d97389574
+- Internet Archive delisted-IPA collection (searched, no Focals): https://archive.org/details/various-mostly-delisted-ipas

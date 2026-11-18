@@ -8,13 +8,28 @@ decisions to *not* do something.
 
 The plan's gate is unchanged but its order has: the decisive step no longer needs glasses.
 
-1. **Find an archived copy of North's iOS app and read its `Info.plist`.** No hardware, and
-   it answers the question the whole project hangs on: `UISupportedExternalAccessoryProtocols`
-   present means iAP2/MFi and sideload-only; absent means a custom BLE GATT companion, Core
-   Bluetooth, no MFi, and App Store distribution back on the table. The app was public until
-   2020-07-31, so copies may survive in old iTunes libraries, device backups or IPA archives.
-   The Android package was `co.glassio`, which is likely the iOS bundle-id prefix too.
-   **Do this before spending money on hardware.**
+1. **Get a copy of North's iOS companion app, `id1438872705`, and read its `Info.plist`.**
+   No hardware, and it answers the question the whole project hangs on:
+   `UISupportedExternalAccessoryProtocols` present means iAP2/MFi and sideload-only; absent
+   means a custom BLE GATT companion, Core Bluetooth, no MFi, and App Store distribution back
+   on the table. **Do this before spending money on hardware.**
+
+   Searched on 2026-11-17 and **not publicly archived** (section 11 of the plan has the full
+   negative result: Apple's API returns nothing, no Wayback snapshot of the store page,
+   nothing in Internet Archive's delisted-IPA collections, `support.bynorth.com` no longer
+   resolves). But the bar turned out to be much lower than assumed:
+
+   - An **encrypted** store IPA is enough — FairPlay leaves `Info.plist` in plaintext, so no
+     jailbreak and no decryption are needed, just `unzip` and `plutil`.
+   - Apple still serves delisted apps to Apple IDs that previously acquired them (free apps
+     count), retrievable with `ipatool`.
+
+   So the blocker is social: **one person who installed the Focals app on an iPhone before
+   2020-07-31 can produce the answer in minutes.** Ask the author of `openfocals` and
+   `focals_utils` first — he reverse-engineered the Android side and may simply know, or hold
+   the iOS build — then the openfocals issue tracker and Focals owner communities. Reaching
+   out is free and settles the central question. *(Pending Abraham's go-ahead: contacting
+   people is an outward-facing action.)*
 2. **Acquire Focals hardware** — still needed for everything past the IPA, and the long-lead
    item (sold 2019–2020, North America only). Start looking in parallel with 1.
 3. **Scan the glasses' BLE GATT services** with any BLE explorer. Minutes of work, and it
