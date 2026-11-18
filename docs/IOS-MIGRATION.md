@@ -685,6 +685,16 @@ the Qt/C++ programs the author built to run **on the glasses themselves**. Weak 
 (the Android side and the author's own tools would not carry iOS strings even under H1) but it
 points the same way as §11.3.
 
+**The FCC internal photos cannot settle it either — do not retry.** An MFi accessory needs
+Apple's authentication coprocessor on the board, so the glasses' internal photographs
+(`focals_utils/info/fcc/tl1a/Internal-Photos-4092354.pdf`, 8 pages, 15 embedded JPEGs of the
+main PCBs) were checked for one on 2026-11-18. The images are 1155×866 at 220 ppi; cropped and
+upscaled, the large packages are partly legible (an SK hynix memory die reads clearly) but
+the small ICs are not, and Apple's MFi coprocessor is a ~2 mm package indistinguishable from
+the surrounding passives at that resolution. Absence of a readable Apple marking is therefore
+no evidence at all. The Loop's own filing (`tl1b/Internal-Photos-4092441.pdf`) is 2 pages and
+is about the ring, not the glasses. This avenue is closed; the `Info.plist` remains the test.
+
 ### 11.4 Sources
 
 - Archived `bynorth.com` snapshots carrying both App Store links: http://web.archive.org/web/20200301000000/https://www.bynorth.com/
