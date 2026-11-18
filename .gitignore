@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Secrets — never committed
+Secrets.xcconfig
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+api_key.json
+
+# Upstream reference clone (third-party code, see docs/UPSTREAM.md)
+reference/
