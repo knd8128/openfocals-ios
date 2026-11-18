@@ -111,3 +111,38 @@ Written up as `docs/IOS-MIGRATION.md` §12, with a superseding banner on §0. `R
 status, the roadmap's *Now* and the decision register were rewritten to match. Also recorded:
 `~/Documents/projects/xcode/BLELab`, an earlier Core Bluetooth attempt of his from September
 2025 that never tried ExternalAccessory — a closed dead end, not vendored.
+
+## 2026-11-18 (third entry) — The macOS side: `FocalsKit` and `focalsctl`
+
+Abraham's call: build macOS first, iOS once it is stable against hardware. macOS reaches the
+glasses over RFCOMM with no MFi, no protocol string and no provisioning, and because the
+transport is one protocol none of the work is wasted when iOS arrives.
+
+Written, from protocol facts only — no upstream code, no copied schema:
+
+- **`FocalsWire`** — LEB128 varints, a streaming `FrameReader` that survives frames split
+  anywhere including mid-prefix, `WireMessage` (the protobuf/bulk-payload split), and a
+  schema-less protobuf reader and writer. The reader means an unknown field decodes as a
+  number and a value instead of breaking, which matters with a schema this partly known.
+- **`FocalsProtocol`** — both message tables as Swift enums (`ToGlasses` 1–50,
+  `ToCompanion` 1–40), the 4.40 `Handshake` and a `HandshakeResponse` reader,
+  and `IncomingMessage` with a structural one-line describe for logging.
+- **`FocalsTransport`** — the `ByteTransport` protocol that the whole iOS question reduces
+  to, a `LoopbackTransport` for tests, and `RFCOMMTransport` on IOBluetooth (SDP lookup of
+  `0x1101`, async channel open, MTU-sized writes).
+- **`FocalsLink`** — the `GlassesLink` actor: opens the transport, pumps frames, performs
+  the handshake, streams everything else up.
+- **`focalsctl`** — `devices` and `probe`.
+
+Verified: `swift build` clean, **27 tests pass**, and `focalsctl devices` enumerated the 13
+real paired Bluetooth devices on this Mac. **No byte has been exchanged with glasses**;
+`focalsctl probe` is written and unrun.
+
+One real bug found and fixed on the way: the handshake raced a timeout inside a task group,
+and because a `CheckedContinuation` is not cancellable the group never finished — the test
+suite hung. Replaced with an explicit state machine (`idle / waiting / settled / done`),
+which also closed two races that were latent in the first version: the reply arriving before
+the caller parked, and the transport dropping while the caller waited.
+
+Protocol written up in `docs/PROTOCOL.md`, in our own words, with the unverified parts
+labelled. `CLAUDE.md` state and the roadmap updated.

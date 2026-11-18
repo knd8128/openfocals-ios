@@ -41,4 +41,8 @@ accessory frameworks need a real device.
 
 ## State
 
-No application code yet. See `docs/ROADMAP.md` for what is next.
+A Swift package (`FocalsKit`) and a macOS command line tool (`focalsctl`). The wire format,
+the message tables, the handshake and the session actor are written and unit-tested; the
+macOS RFCOMM transport is written and enumerates real paired devices, but **no byte has
+been exchanged with actual glasses yet**. No iOS target exists — that comes after the macOS
+side is stable against hardware. `swift test` is the check to run; see `docs/ROADMAP.md`.

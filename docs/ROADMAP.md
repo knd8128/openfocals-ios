@@ -10,6 +10,12 @@ The transport question is answered (`docs/IOS-MIGRATION.md` §12): North's iOS a
 **ExternalAccessory/iAP2**, so the glasses are an MFi accessory. The App Store is out; a
 development-signed app is a real path. The gate is now **hardware**.
 
+0. **Done 2026-11-18: the macOS side exists.** `FocalsKit` (`FocalsWire`, `FocalsProtocol`,
+   `FocalsTransport`, `FocalsLink`) plus the `focalsctl` tool. Varints, framing, a
+   schema-less protobuf codec, both message tables, the 4.40 handshake and the session
+   actor, with 27 tests; the RFCOMM transport enumerates real paired Bluetooth devices.
+   Nothing has touched glasses yet — `focalsctl probe` is written and unrun.
+
 1. **Find out whether the Focals still exist.** Abraham owned a pair — `Focals - 00DW`,
    serial `1f47080e`, hardware v11, software 1.117.0-4559, last used 2020-06-01 — proven by
    the app container recovered from his iPhone backup. If that pair is in a drawer, the
@@ -20,11 +26,16 @@ development-signed app is a real path. The gate is now **hardware**.
    `name`, `serialNumber`, `firmwareRevision` and `protocolStrings`. Half a day. It yields the
    string our `Info.plist` needs, and it converts §12's inference into proof — if the glasses
    appear in that array, they are MFi, full stop.
-3. **Open an `EASession` and exchange one protocol message.** The handshake is
+3. **Run `focalsctl probe` against the glasses from this Mac.** The first real test of
+   `docs/PROTOCOL.md`: pair the glasses in System Settings, then watch the handshake either
+   come back with a software version or fail. Everything above the transport is already
+   written, so this is minutes of work once they are paired, and it validates the framing,
+   the varints and the message tables in one shot.
+4. **Open an `EASession` and exchange one protocol message.** The handshake is
    `EstablishConnection{versionMajor: 4, versionMinor: 40}` (confirmed independently: the OTA
    metadata requires `minBlackCoralProtocolVersion 4.40`). This is the old step 4 and it is
    still the point past which nothing should be built.
-4. **Stand up `pycompanion` against the glasses** from a Linux box or a Raspberry Pi — the
+5. **Stand up `pycompanion` against the glasses** from a Linux box or a Raspberry Pi — the
    author's working Python companion, cheaper than Swift for learning the protocol.
 
 Obsolete: getting North's IPA. It was only ever a way to learn the protocol string without
@@ -56,6 +67,25 @@ that do not need a device.
   instead.
 
 ## Decision register
+
+### 2026-11-18 — Build macOS first, iOS after it is stable against hardware
+
+**Decided (Abraham's call):** write the protocol stack and a macOS tool first, and only
+build the iOS companion once that is stable. **Why:** macOS reaches the glasses over RFCOMM
+with no MFi, no protocol string and no provisioning, so the protocol can be learned and the
+whole stack debugged without fighting Apple; and because the transport is one protocol
+(`ByteTransport`), none of that work is thrown away when iOS arrives — only
+`EATransport` is added beside `RFCOMMTransport`. **Status:** done for the first slice; see
+item 0 of *Now*. **Also decided:** no code from upstream or from the extracted schemas is
+copied — field numbers and framing are facts, written out as our own Swift tables, and
+`docs/PROTOCOL.md` states them in our own words.
+
+**Also decided:** no `swift-protobuf` dependency for now. The schema is large, only partly
+known, and the decoder works without one — an unrecognised field still reads as a number and
+a value, so new firmware cannot break it. Revisit when typed readers for the bigger messages
+(sync, settings, file transfer) start costing more than a dependency would.
+
+
 
 ### 2026-11-18 — The transport is settled: ExternalAccessory/iAP2, found on Abraham's own Mac
 
