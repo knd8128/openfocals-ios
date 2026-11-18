@@ -12,34 +12,60 @@ This project is the attempt to build one.
 
 ## Status
 
-**Analysis done, not started, and conditional on an experiment nobody has run yet.**
-No application code exists.
+**Analysis done, not started, and hanging on one artifact nobody has found yet.** No
+application code exists.
 
-The analysis is in [`docs/IOS-MIGRATION.md`](docs/IOS-MIGRATION.md) and its conclusion
-is worth stating up front rather than burying:
+The analysis is in [`docs/IOS-MIGRATION.md`](docs/IOS-MIGRATION.md). It began as a mostly
+negative verdict and improved as evidence came in; the honest current reading:
 
-> A faithful iOS port is not viable. A reduced, sideload-only port may be viable, and a
-> two-to-four-day experiment with physical glasses decides it.
+> A faithful port of the Android app is not viable. A reduced iOS companion probably is.
+> Whether it could ever reach the App Store, or only ever be sideloaded, depends on a
+> question that one file would answer.
 
-Three findings drive that:
+### The question everything hangs on
 
-- **The glasses speak classic Bluetooth RFCOMM** (Serial Port Profile). iOS gives
-  third-party apps no RFCOMM API at all; the only classic-Bluetooth data path is
-  ExternalAccessory, which works solely with MFi-certified accessories. There is no BLE
-  data path and no Wi-Fi link to the phone anywhere in the protocol. Whether Focals are
-  MFi accessories is the single question the whole project hangs on — there is suggestive
-  evidence in the Android source, and it is unconfirmed.
-- **App Store distribution is unavailable** under any outcome: an MFi accessory's
-  manufacturer decides which apps may connect to it, and North is defunct.
-- **Mirroring other apps' notifications cannot be ported.** iOS has no equivalent of
-  Android's notification listener, so the feature most owners would want is the one
-  least likely to exist.
+North shipped an **official iOS app** for Focals (setup, settings, alignment, notification
+selection; iPhone 5S and newer, pulled from the App Store in July 2020). So an
+iPhone-to-glasses channel existed and worked. Two candidate explanations, and they have
+opposite consequences:
 
-What would survive: connecting, battery and Loop state, calibration, the tunnelled
-network proxy and the mocked cloud behind it (notes, tasks, weather, teleprompter,
-live subtitles), file transfer, location, Apple Music control.
+| | How the iOS app talked to the glasses | Consequence |
+| --- | --- | --- |
+| **H1** | iAP2 over ExternalAccessory | The glasses are an MFi accessory. Our app can likely open the same session, but **sideload only** — an MFi accessory's manufacturer decides which apps may connect, and North is defunct |
+| **H2** | A custom BLE GATT service | **No MFi involved.** Core Bluetooth is enough, and App Store distribution is back on the table |
 
-Nothing here has been tested against real hardware, because there is none on hand.
+The deciding artifact is an archived copy of North's iOS app: if its `Info.plist` declares
+`UISupportedExternalAccessoryProtocols`, it is H1; if not, H2. That is the cheapest, highest
+-value step in this project — **it needs no glasses** — and it is ahead of buying hardware.
+
+Evidence for H2 is now the stronger side: the glasses are a confirmed dual-mode radio
+(classic BR/EDR *and* BLE, per their FCC test report), their firmware demonstrably acts as a
+BLE central/GATT client, and the captured Bluetooth service record shows the Android
+companion channel is plain Serial Port Profile with **no iAP2 service advertised** — the
+custom UUID that first suggested iAP2 turns out to be the Focals SPP service's own class.
+
+### What is settled
+
+- **The Android transport is classic Bluetooth RFCOMM (SPP)**, which iOS does not expose to
+  third-party apps at all. If H1 and H2 both fail, an iPhone cannot talk to these glasses
+  without carrying a bridge device, and that is a no-go.
+- **Notification mirroring works, and needs no code from us.** The glasses' own Bluetooth
+  schema carries ANCS state, so the firmware is an ANCS client: paired to an iPhone, it
+  receives notifications straight from iOS over BLE, with ANCS's reduced action set. This
+  was the feature expected to be impossible; it is the one that comes free.
+- **The dead cloud is replaceable.** The glasses ask for a cloud host and the companion
+  answers in its place, terminating TLS in memory — no iOS trust-store problem, because no
+  system proxy is involved. The upstream certificate expired in January 2023, so a port
+  needs its own domain and certificate.
+
+What would survive: connecting and reconnecting, battery and Loop state, Loop pairing,
+calibration, the tunnelled network proxy and the mocked cloud behind it (notes, tasks,
+weather, teleprompter, live subtitles with on-device speech), file transfer, location,
+Apple Music control. What does not: reading other apps' notifications *through our app*
+(unnecessary — see above), generic media control, screen-region mirroring, and anything
+that must survive a force-quit.
+
+Nothing here has been tested against hardware, because there is none on hand.
 
 ## Relationship to the Android app
 

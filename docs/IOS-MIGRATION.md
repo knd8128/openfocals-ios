@@ -10,6 +10,13 @@ real glasses. Everything marked **ASSUMPTION** is inferred and unverified.
 two-to-four-day experiment with physical glasses decides it. Do not commit to anything past
 Phase 0 until that experiment passes.**
 
+> **Read section 9 with this.** Added the same day from published sources: North shipped an
+> official **iOS** companion app, and the glasses displayed iPhone notifications. That does
+> not change the no-go on a faithful port or on the App Store, but it raises the odds on the
+> iAP2 question below, and it moves notification mirroring from "impossible" to "probably
+> already works firmware-side". It also makes two Phase 0 checks possible **without
+> hardware**.
+
 Why, in order of severity:
 
 1. **Transport.** The Android app talks to the glasses over classic Bluetooth RFCOMM using
@@ -24,16 +31,30 @@ Why, in order of severity:
      the glasses were MFi-certified and North's own iOS app used ExternalAccessory. If so, a
      development-signed iOS app can open the same session once the protocol string is known.
      If not, an iPhone cannot talk to these glasses without a bridge device.
+   - *Revised by section 10 (second repo, `focals_utils`): a captured SDP record shows the
+     companion channel is plain SPP (service class `1101`) with no iAP2 service listed, which
+     weakens the iAP2 story; but the glasses are a confirmed dual-mode BT device with a working
+     BLE central/GATT stack, and the likelier explanation for North's iOS app is a custom BLE
+     GATT companion channel, which needs no MFi. That would dissolve this blocker. Unproven
+     from code; the archived IPA still decides it.*
 2. **Distribution.** Even if (1) works, Apple's documentation states that the accessory
    manufacturer decides which apps may talk to its MFi accessory. North is defunct. Treat
    App Store distribution as unavailable; this is a personal/sideloaded app at best.
 3. **Notification mirroring**, the feature most users would expect, has no iOS equivalent
    of `NotificationListenerService`. It is recoverable only if the glasses firmware itself
    implements Apple's ANCS (unknown), or in the EU on iOS 26.5+ via AccessoryNotifications.
+   *Revised by section 9: contemporaneous reviews describe iPhone notifications working on
+   Focals with exactly the action set ANCS allows, so the firmware is probably an ANCS
+   client and this is probably not a blocker at all. Confirmed by section 10: the firmware's
+   own protobuf schema carries an `AncsDeviceStatus` message. No longer a blocker.*
 4. **The cloud-intercept TLS certificate is expired and is not ours to renew.** The embedded
    leaf for `cloud.ofocals.com` expired 2023-01-03. This is not an iOS problem; it has
    probably already broken the cloud features on Android. Any port needs its own domain,
    its own publicly trusted certificate, and a renewal pipeline.
+   *Refined by section 10: for anyone with rooted glasses (connector cable) the second repo
+   ships a procedure to install a private root CA, which lets the mock cloud use a self-signed,
+   long-lived cert and removes the renewal problem entirely. For unmodified glasses the
+   publicly-trusted-cert path above still stands.*
 
 Largest viable subset if Phase 0 passes: connect/reconnect, battery and Loop state, Loop
 pairing, display calibration, feature toggles, the tunnelled network proxy, the mocked cloud
@@ -143,7 +164,7 @@ Consequences:
 
 | Option | What it is | Honest assessment |
 | --- | --- | --- |
-| BLE GATT path | Glasses advertise over BLE (`ConnectActivity.java:74-86`), so some GATT surface exists | Unknown contents. No evidence of a data service in this repo. Worth a 30-minute scan with a BLE explorer; do not plan on it |
+| BLE GATT path | Glasses advertise over BLE (`ConnectActivity.java:74-86`), so some GATT surface exists | Unknown contents in *this* repo. **Revised by section 10:** the second repo proves the firmware has a BLE central/GATT-client stack, and makes a custom-BLE iOS companion channel a live hypothesis. Still worth the BLE scan; no longer "do not plan on it" |
 | Wi-Fi/TCP | n/a | The glasses have no IP link to the phone in this design. Not available |
 | Bridge device | A Mac (IOBluetooth allows RFCOMM), a Raspberry Pi or an old Android phone holds the RFCOMM link and relays frames to the iPhone over BLE or WebSocket | Works technically. For a wearable it means carrying a second device; an Android phone running the existing app does the same job with zero new code. Acceptable only as a desk demo |
 | Glasses-side shim | A native daemon on the glasses that re-exposes the companion link over BLE | `glasses_apps/app_manager/notes.txt` shows native binaries can be installed over adb with `/system` remounted, but it needs the connector cable, root, and reverse engineering of the firmware's companion service. Research project, not a plan |
@@ -162,8 +183,8 @@ Verdicts: **Direct** (same behaviour), **Degraded** (works with less), **User ac
 | Feature toggles | `ui/features/FeaturesFragment.java:219-277`, `Device.java:725-739` | Same messages | Direct | |
 | Network tunnel (passthrough) | `NetworkSocketManager.java` (`java.net.Socket`) | `NWConnection` per tunnel id; DNS via `getaddrinfo` or `NWEndpoint.hostPort` | Degraded | Works while the app is running. Sockets held by a suspended app are reclaimed; see background row |
 | Mock cloud + TLS termination | `CloudMockService.java`, `SSLServerDataHandler.java` | In-memory TLS server (swift-nio-ssl on an `EmbeddedChannel`, or a loopback `NWListener` with a `sec_identity`) + Swift HTTP router | Blocked on certificate | The iOS trust store and `NSAppTransportSecurity` are irrelevant: the phone is the TLS *server* and the glasses are the client that validates. The embedded leaf expired 2023-01-03 and `ofocals.com` belongs to the upstream author. We need our own domain and a publicly trusted cert whose chain a 2019-2020 firmware trust store accepts. A private key shipped inside an app is a compromised key; fetch it at runtime from our server, or terminate TLS on a real server and let the phone tunnel pass through |
-| Intercept arbitrary hosts (Amazon, Google speech) | Custom CA leaf (`SSLInterceptDataHandler.java:19-69`), `InterceptedSSLPassthroughProxy.java`; all registrations commented out (`DeviceService.java:166-187`) | Same technique | Out of scope | Needs the custom root installed on the glasses' filesystem (comment at `SSLInterceptDataHandler.java:15-16`), i.e. rooted glasses. Dead code upstream |
-| Notification mirroring | `NotificationListenerService` (`NotificationService.java`, manifest `:54-61`) | None for apps. Options: (a) ANCS, if the *firmware* is an ANCS client; (b) AccessoryNotifications, iOS 26.5+, customers in the EU only; (c) notifications our own app originates (calendar via EventKit, reminders, our integrations) | Impossible as built; Degraded via (c) | iOS has no API to read other apps' notifications. (a) needs no app code at all and is checkable in minutes: after pairing, look for "Share System Notifications" on the device's Bluetooth settings page. (b) is real but unusable for a Mexico-based user outside development |
+| Intercept arbitrary hosts (Amazon, Google speech) | Custom CA leaf (`SSLInterceptDataHandler.java:19-69`), `InterceptedSSLPassthroughProxy.java`; all registrations commented out (`DeviceService.java:166-187`) | Same technique | Out of scope | Needs the custom root installed on the glasses' filesystem (comment at `SSLInterceptDataHandler.java:15-16`), i.e. rooted glasses. Dead code upstream. **Section 10** confirms the second repo ships exactly that install procedure (cable + rooted filesystem) |
+| Notification mirroring | `NotificationListenerService` (`NotificationService.java`, manifest `:54-61`) | None for apps. Options: (a) ANCS, firmware-side; (b) AccessoryNotifications, iOS 26.5+, customers in the EU only; (c) notifications our own app originates (calendar via EventKit, reminders, our integrations) | **Revised by section 10 to "firmware-side, no app code"** | The firmware is an ANCS client (`AncsDeviceStatus` in the BT schema), so once the glasses are paired to an iPhone they receive notifications directly over BLE/ANCS with ANCS's reduced action set, independent of our companion app. iOS still gives *our app* no way to read other apps' notifications; it does not need to. (b) remains EU-only |
 | Notification actions and replies | `PendingIntent.send` with `RemoteInput` (`NotificationSender.java:186-216`) | Only through ANCS positive/negative actions or AccessoryNotifications `NotificationResponse` | Impossible (same caveats) | |
 | Dismiss on phone from glasses | `cancelNotification` (`NotificationSender.java:180-185`) | Same as above | Impossible (same caveats) | |
 | Media transport control | `AudioManager.dispatchMediaKeyEvent` (`MediaPlaybackService.java:65-87`) driven by the fake Spotify integration (`MusicIntegration.java:91-123`) | `MPMusicPlayerController.systemMusicPlayer` controls Apple Music only; Spotify via its Web API (Premium) | Degraded | No iOS API sends play/pause/next to whichever app is playing |
@@ -270,3 +291,281 @@ Hardware and tools: one pair of Focals with Loop and charging case; ideally the 
 - Accessory Notifications framework (iOS 26.5+, iPhone only, customer use limited to the EU): https://developer.apple.com/documentation/accessorynotifications
 - Broadcast extension memory ceiling (secondary sources only; not in Apple's documentation): https://www.forasoft.com/blog/article/how-to-implement-screen-sharing-in-ios-1193
 - iAP2 service UUID (device-side `…CAFE` value in a vendor SDK header; the accessory-side `…CAFF` value is not confirmed by a primary source): https://mtbgit.infineon.cn/Infineon/btsdk-include/blob/master/wiced_bt_iap2.h
+
+## 9. Addendum, 2026-11-17: North shipped an official iOS app
+
+Added after the code analysis, from published sources rather than the repository. The
+Android code cannot know this, and it changes two of the judgements above.
+
+### 9.1 The facts
+
+- **An official Focals companion app existed for iOS**, not only Android. It handled setup,
+  settings, the Alignment (calibration) flow, and **choosing which app notifications appear
+  on the glasses**. Supported iPhone 5S and later on iOS 11+. North's own support page
+  confirms it was removed from both the App Store and Google Play when Focals and its
+  services were discontinued after 2020-07-31.
+- **The glasses displayed iPhone notifications**, and reviewers consistently describe an
+  asymmetry: on Android you could triage and reply to a notification; **on iPhone you could
+  only mark it as read**, and replying to texts worked on Android only.
+- Replying to texts on iOS went through North's own servers, so the recipient saw a message
+  from an unfamiliar number. That path depended on the dead cloud and is gone regardless.
+- *Not* to be confused with **Focals Showroom**, a separate iOS app that used the TrueDepth
+  camera for sizing before purchase. It has nothing to do with the companion link; do not
+  chase it.
+
+### 9.2 What it implies
+
+- **An iOS-to-glasses data channel existed and worked.** North's app changed settings and
+  drove alignment, which is bidirectional application data, not a standard Bluetooth
+  profile. On iOS that leaves exactly two possibilities: iAP2 via ExternalAccessory, or a
+  custom BLE GATT service. Either one is a path this port could use; the hard blocker in
+  section 0 item 1 is "neither exists", and that is now unlikely.
+- **The glasses are probably an MFi accessory.** Combined with the unused
+  `00000000-DECA-FADE-DECA-DEAFDECACAFF` constant at `focals/Device.java:98`, the existence
+  of a working iOS app that is not a mere BLE remote raises the iAP2 hypothesis from
+  "suggestive" to "probable". **Still an ASSUMPTION**: no primary source names Focals in the
+  MFi programme, and a custom GATT service would explain the same observations.
+- **The firmware is probably an ANCS client.** The iPhone action asymmetry is diagnostic, not
+  incidental: Apple's ANCS gives an accessory the notification content plus a *positive and a
+  negative action slot* and nothing more, while Android's `NotificationListenerService`
+  exposes arbitrary actions and `RemoteInput` replies. "Mark as read on iPhone, full triage
+  on Android" is precisely the shape of that difference. If the firmware consumes ANCS, then
+  on iOS **notification mirroring needs no app code from us at all** — the glasses get
+  notifications straight from iOS over BLE once paired. This revises section 3's "Impossible"
+  verdicts for the three notification rows to "probably works, firmware-side, with ANCS's
+  reduced action set". **ASSUMPTION** until checked on hardware.
+- It also explains why the Android app owns a notification listener at all: on Android the
+  phone must do the work, while on iOS the system hands it to the accessory directly.
+
+### 9.3 What this adds to Phase 0 — and two checks that need no glasses
+
+The original Phase 0 needed hardware for everything. Two of its questions can now be
+attacked first, cheaply, from a desk:
+
+1. **Find an archived copy of North's iOS app and read its `Info.plist`.** This single
+   artifact would settle the project's central question without touching glasses:
+   `UISupportedExternalAccessoryProtocols` confirms iAP2 **and gives the exact protocol
+   string** (question 1 in section 6); `UIBackgroundModes` distinguishes
+   `external-accessory` from `bluetooth-central`; the binary would carry any GATT service
+   UUIDs. The app was public until 2020-07-31, so copies may exist in old iTunes libraries,
+   old device backups, or IPA archives. **This is now the cheapest highest-value step in the
+   whole project** — ahead of buying hardware.
+2. **Check whether the firmware is an ANCS client** — still needs glasses, but only a
+   pairing and a glance at "Share System Notifications" in iOS Bluetooth settings. Minutes,
+   and it decides the feature users care about most.
+
+### 9.4 What it does not change
+
+The no-go stands where it stood. App Store distribution remains unavailable: an MFi
+accessory's manufacturer decides which apps may connect, and North is defunct — being
+*probably* MFi does not help, it is the same gate. Everything remains sideload-only, and the
+expired-certificate problem with the mocked cloud is untouched by any of this.
+
+### 9.5 Sources
+
+- North's support site (discontinuation; app removed from both stores): https://support.bynorth.com/
+- Tom's Hardware review (iPhone vs Android notification handling): https://www.tomshardware.com/reviews/north-focals-smart-glasses-ar,5968.html
+- Trusted Reviews (app's role in setup, settings, alignment, notification selection): https://www.trustedreviews.com/reviews/focals-by-north-smart-glasses
+- Voicebot.ai review (reply-to-text limited to Android): https://voicebot.ai/2019/08/08/review-north-focals-clarify-a-vision-of-smart-glasses/
+- MacSources review (iPhone compatibility, iOS 11+): https://macsources.com/focals-by-north-smart-glasses-review/
+- MobileSyrup (Focals *Showroom*, the separate sizing app, for disambiguation): https://mobilesyrup.com/2019/09/18/focals-ios-showroom-app-launch-canada/
+
+## 10. Addendum, 2026-11-17: second repo (`focals_utils`) by the same author
+
+Assessed from a read of `aegray/focals_utils`, cloned read-only at
+`/Users/abraham/Documents/projects/focals_utils`. Protocol facts only cross the boundary; no
+code is vendored (project rule). Nothing here was executed; nothing was run against glasses.
+Private-key files in `glasses/rootcert/` were not opened; the procedure is described, never its
+keys. `file:line` citations below are into `focals_utils`.
+
+**Does the verdict move?** Partly, and in the optimistic direction, but not to an unconditional
+go. Three things changed. (1) **Notification mirroring is no longer a blocker:** the firmware's
+own Bluetooth schema contains an `AncsDeviceStatus` message, so the glasses are an ANCS client
+and receive iPhone notifications directly over BLE once paired — this upgrades section 9's
+inference to a confirmed fact and revises section 3's "Impossible" rows to "works firmware-side,
+no app code". (2) **The transport blocker is now genuinely two-sided:** a captured SDP record
+shows the companion channel is plain SPP with no iAP2 service advertised (which, taken alone,
+would make section 0 item 1 *worse*), but the glasses are a confirmed dual-mode device with a
+working BLE central/GATT stack, and North's documented iOS app most plausibly used a **custom
+BLE GATT companion channel** — a path that needs no MFi and would reopen even App Store
+distribution. I cannot choose between those from code. (3) The expired-certificate blocker has a
+clean resolution for rooted glasses. Net: the conditional-go for the subset becomes materially
+more likely, the single decisive artifact is still the archived iOS IPA (section 9.3), and the
+no-go for a *guaranteed* App Store port stands only until that IPA is read. **The go/no-go gate
+itself is unchanged; the odds behind it improved.**
+
+### 10.1 BLE/GATT-client question (the one that matters most)
+
+Confirmed: the firmware contains a BLE central / GATT-client stack.
+
+- `loop/loop_provider.py` is a BlueZ GATT **peripheral** that impersonates the Loop ring
+  (`FocalsLoopMainService.SVC_UUID = '39de08dc-624e-4d6f-8e42-e1adb7d92fe1'`,
+  `loop/loop_provider.py:297`, with input/devid/unknown characteristics at `:417`, `:473`,
+  `:514`). The README states the glasses connect to it and accept it as a Loop. For the glasses
+  to discover services and subscribe to a characteristic on it, the **glasses must act as a BLE
+  central and GATT client** — the exact role an ANCS consumer plays against an iPhone. The
+  companion comment block at `loop/loop_provider.py:61-81` records the real Loop's GATT table,
+  and `loop/loop_input.py:8-11` drives the same characteristics as a client.
+- Effect on blocker 3 (section 2.4 "BLE GATT path — unknown contents"): the stack is no longer
+  unknown to exist. What remains unknown is whether a *companion* GATT service (as opposed to the
+  Loop-facing and ANCS-facing roles) is exposed. The Loop UUIDs are the Loop's, not the glasses'.
+
+### 10.2 ANCS: now a schema fact, not an inference
+
+- `btmsgprotos/` holds the BT protobuf schema lifted from five shipping app versions (v1.81 →
+  v1.115). Every version defines `message AncsDeviceStatus { required AncsStatus status; }` with
+  `enum AncsStatus { LISTENING, ENUMERATING, PAIRING, PAIRING_COMPLETE, REGISTERING, CONNECTED }`
+  (`btmsgprotos/focals_v1.115.0-2842.apk.bc.proto:89`). That is the lifecycle vocabulary of an
+  ANCS consumer attaching to an ANCS provider.
+- It is carried both ways: the to-glasses envelope `BlackCoral` has `ancsStatus = 23`
+  (`:499`) and the to-phone `CompanionSync` has `ancsStatus = 2` (`:678`).
+- Corroborating Apple-shaped fields in the same schema: `AppAttributes { bundleId, name }`
+  (`:84`, "bundleId" is ANCS App-Attribute language), `AppNotificationBlacklist` /
+  `AddToAppNotificationBlacklist` (the per-app notification selection North's iOS app offered),
+  `DismissNotification` and `PerformNotificationAction` (ANCS positive/negative actions).
+- Conclusion: notification delivery to the glasses on iOS is handled by iOS + the firmware over
+  BLE/ANCS, needs no code from us, and gives ANCS's reduced action set — which is precisely the
+  "mark as read on iPhone, full triage on Android" asymmetry section 9 cited from reviews.
+  **ASSUMPTION** still open only on whether a 2026 iPhone completes ANCS pairing with 2019
+  firmware; checkable in minutes on hardware (the Bluetooth-settings notification toggle).
+
+### 10.3 `pycompanion` is the better protocol reference, and corroborates section 2.2
+
+`linuxtools/pycompanion/` is a working companion that the glasses accept in place of the phone
+app. It is a better basis for `FocalsProtocol`/`FocalsLink` than the decompiled Java, because it
+is the author's own clean expression of the wire format rather than Google's proto-lite output:
+
+- **Framing matches section 2.2 exactly.** `companion_lib.py:13-45` reads
+  `uvarint(frameLen)`, then `uvarint(msgLen) + message + trailing payload` — byte-for-byte the
+  `Device.java` scheme. Send side at `companion_lib.py:71-82`. Chunking is 950/1000 bytes
+  (`companion_lib.py:117`, `connect.py:17`). This independently confirms the framing I recovered.
+- **Handshake matches:** `connect.py:36-43` sends `Handshake{protocolMajorVersion=4,
+  protocolMinorVersion=40}` over `AF_BLUETOOTH / BTPROTO_RFCOMM` (`connect.py:29`), identical to
+  `EstablishConnection{4,40}`. `HandshakeResponse` (`btmsgprotos/...:976`) adds fields the Android
+  side ignores: `softwareVersion`, and `requiredProtocol{Major,Minor}Version` with an enum result
+  `{SUCCESS, BLACK_CORAL_UPDATE_REQUIRED, COMPANION_UPDATE_REQUIRED}` — version negotiation the
+  port should honour.
+- **Envelope names differ, mapping is clean:** `BlackCoral` = to-glasses (openfocals
+  `BTMessageToFocals`), `Companion` = to-phone (`BTMessageToBuddy`). 203 messages vs the ~60 in
+  the `BTMessages.proto` I analysed.
+- **It fills section 2.2's gaps.** Templated settings, which `Device.java:783-789` threw
+  "Not impl" for, are fully specified (`GetSettings`/`SetSettings`/`GetSettingsResponse`,
+  `BlackCoralTemplatedSettings` at `:367`; `avail_settings.txt` is a captured dump). It adds SMS
+  (`CompanionSms`, `MarkSmsRead`, `SyncSms`), navigation, favourite contacts, clipboard, camera,
+  showcase/stories, exit-pupil alignment (the calibration flow), and `ExternalAuthorization`
+  (the Alexa path). `send_msg.py` and `test_msgs.py` are worked examples.
+- **Does it make Phase 0 cheaper?** It moves Phase 0a off macOS: `pycompanion` and
+  `loop_provider` use Linux BlueZ (`AF_BLUETOOTH` RFCOMM, dbus GATT), not portable to a Mac.
+  The cheapest proof-of-life host is now a **Linux box or Raspberry Pi** with a BT adapter,
+  reading these as the reference, rather than writing fresh IOBluetooth code. It does **not**
+  make the iPhone step (0b) testable sooner — that still needs an `EASession` or a GATT client
+  on a real device, and it does not resolve whether iOS uses SPP/iAP2 or BLE.
+
+### 10.4 The certificate blocker (section 0 item 4), refined
+
+`glasses/rootcert/directions.sh` is a procedure to mint a private root CA and a leaf, then
+**install the CA into the glasses' system trust store** (the script's own target is
+`/system/etc/ssl/certs/cacert.pem`, `directions.sh:31`). `qt_test_ssl/` is a Qt client that
+verifies the installed CA against a local HTTPS server (`runserver.py`). Implications:
+
+- Installing the CA requires write access to `/system`, i.e. the full rooted-filesystem access
+  the connector cable gives (section 10.5). So for **unmodified** glasses this is not available,
+  and the publicly-trusted-cert path in section 0 item 4 stands unchanged.
+- For **rooted** glasses it dissolves the blocker: with your own CA installed you serve the mock
+  cloud with a self-signed, long-lived certificate and never depend on a public CA or its expiry.
+  The author's `ofocals.com` cloud-host-redirect trick (openfocals) exists precisely to avoid
+  needing this install; the two are alternative resolutions, not a dependency.
+- The embedded leaves in both repos are expired and their SANs are the author's own domains; none
+  is reusable. (Per project rule, keys were not read.)
+
+### 10.5 Connector cable and firmware access (section 2.4 "glasses-side shim")
+
+`connector/notes.txt`, `connector/bootloader.txt` and `glasses/updating/update_process.txt`
+establish how much the cable gives:
+
+- The 4-pin magnetic connector is USB (`connector/notes.txt:12-18`); the device is Qualcomm-based
+  (USB `idVendor=05c6`, `connector/notes.txt`), and its secure-boot fuses were never blown, so a
+  self-built cable plus low-level flashing yields read/write filesystem and bootloader access.
+  `WRITEUP.md:119-122` reaches a root adb shell by that route.
+- But adding software the *supported* way is gated: OTA update packages are whole-file
+  signature-verified against North's certificates (`update_process.txt`, the
+  `verify_pkg_sig` description), so an unsigned package cannot be pushed without North's private
+  keys. The only install path is the cable.
+- Rating change for a glasses-side BLE shim that would route around MFi entirely: from "research
+  project, not a plan" to **"physically possible and the hardware access is proven, but still a
+  multi-month reverse-engineering effort that each user must repeat with a hand-built cable, and
+  the author never worked out how the glasses *receive* Bluetooth messages or run new software
+  without the cable (`WRITEUP.md:188-199`, `:242-244`)."** It is not a distributable path, and
+  the ANCS finding makes it largely unnecessary: notifications already arrive without it, and the
+  shim would only help the companion link.
+
+### 10.6 FCC filings (`info/fcc/`) — the only primary hardware evidence
+
+Extracted with `pdftotext` (installed; nothing added).
+
+- **The glasses officially supported iPhone.** Focals User Manual (FCC ID `2ACKV-TL1A`):
+  "compatible with Android ... smartphones and iPhones (5S and newer). The North App supports
+  Android OS versions 5.0+ and iOS versions 10+." This is primary-source confirmation of section
+  9's premise that an iOS companion existed and worked.
+- **The glasses are a dual-mode Bluetooth radio.** Test Report lists classic BR/EDR packet types
+  (`3-EV5, 3-DH5, DM5`) *and* BLE (`GFSK`), both in 2402–2480 MHz. So both the SPP companion link
+  and a BLE companion/ANCS link are physically present — the hardware does not decide H1 vs H2.
+- **Loop is a separate BLE device** (FCC ID `2ACKV-TL1B`), consistent with `loop_provider`.
+- The exact Bluetooth module part number is not in the extractable text (only in internal-photo
+  images); the Qualcomm SoC is confirmed by the USB VID. Not worth more effort.
+
+### 10.7 The SDP capture refines, and slightly complicates, the transport question
+
+`linuxtools/findglasses.py:85` records the author's captured SDP service list for the glasses.
+The companion service is **"Focals SPP Service", RFCOMM, service-classes `1101` +
+`00000000-DECA-FADE-DECA-DEAFDECACAFF`**. Two consequences:
+
+- The mystery constant from section 0 item 1 and section 9.2 is **not iAP2**: it is the custom
+  service-class UUID of the Focals SPP service itself. This *weakens* the "glasses are MFi / use
+  iAP2" reading — no iAP service class appears in the captured record.
+- Yet North shipped a working iOS app (10.6). The most parsimonious reconciliation is **H2: the
+  iOS companion used a custom BLE GATT service**, which the confirmed BLE stack (10.1) supports
+  and which requires no MFi. H1 (an iAP2 service the Linux browse did not surface) is not
+  excluded. The archived IPA's `Info.plist` settles it directly: `UISupportedExternalAccessoryProtocols`
+  present ⇒ H1 (iAP2/ExternalAccessory, sideload-only); absent ⇒ H2 (custom BLE GATT, Core
+  Bluetooth, no MFi, App Store possible). This is still the highest-value no-hardware step, and
+  section 9.3 already names where to look.
+
+### 10.8 WRITEUP.md firmware inventory — effect on the feature table
+
+`WRITEUP.md` is the author's full account. Items that touch a verdict:
+
+- **Networking is Bluetooth-tunnelled by design, system-wide.** A custom lib ("csl") replaces Qt's
+  network stack so every glasses-side socket is carried as BT messages through the companion
+  (`WRITEUP.md:127-132`, `:443`). This confirms the tunnel architecture in section 1.3 is not an
+  app choice but the platform's only network path — so the port's `TunnelManager` (section 4) is
+  mandatory for *any* cloud-backed lens, not optional.
+- **A firmware service drives updates and file transfer** (`companion_service`,
+  `update_process.txt`), matching the file-pull protocol in section 3; nothing changes, firmware
+  update stays out of scope.
+- **`notification_app`/`notification_service` exist on the glasses** (`WRITEUP.md:415-417`) — the
+  consumer of ANCS/notification data, consistent with 10.2.
+- **`libcslserver.so` exists** (`WRITEUP.md:443-444`): there may be a way to make the glasses
+  *accept* inbound connections, which would matter for a shim, but the author never used it.
+  Flagged, not planned.
+- Nothing in the inventory names Apple directly; the Apple integration is visible only in the BT
+  schema (10.2), not in the binary names.
+
+### 10.9 What remains unknown after this repo
+
+- H1 vs H2 (SPP/iAP2 vs custom BLE GATT for the iOS companion). Resolved by the archived IPA or by
+  hardware, not by either repo's code.
+- Whether 2026 iOS still pairs/authenticates and completes ANCS with 2019 firmware.
+- Whether a companion-grade GATT service (beyond Loop-facing and ANCS-facing roles) is exposed;
+  `findglasses.py` would print it but no capture is committed.
+- Section 6's other open items are unchanged.
+
+### 10.10 Sources (second repo)
+
+All citations are into `aegray/focals_utils` at the clone path above:
+`loop/loop_provider.py`, `loop/loop_input.py`, `linuxtools/findglasses.py`,
+`linuxtools/pycompanion/{companion_lib.py,connect.py}`,
+`btmsgprotos/focals_v1.115.0-2842.apk.bc.proto`, `glasses/rootcert/directions.sh`,
+`connector/{notes.txt,bootloader.txt}`, `glasses/updating/update_process.txt`, `WRITEUP.md`,
+and the FCC PDFs under `info/fcc/tl1a/` and `tl1b/` (public filings, fccid.io `2ACKV-TL1A` /
+`2ACKV-TL1B`).

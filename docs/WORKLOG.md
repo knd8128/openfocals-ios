@@ -39,5 +39,21 @@ stripped before publishing; they were not — two RSA private keys and their cer
 are still embedded in its source, both expired. Nothing was copied from them, and
 `docs/UPSTREAM.md` now warns future sessions off them.
 
-**Next.** Phase 0 only: acquire hardware, determine whether the glasses are MFi, and
-exchange one protocol message from an iPhone. See `docs/ROADMAP.md`.
+**Then the verdict improved twice.** Published sources confirmed North shipped an official
+**iOS** app, and reviewers' description of iPhone notifications (mark-as-read only, versus
+full triage on Android) matched the ANCS action shape exactly — written up as section 9 of
+the plan. Then a second repository by the same author, `aegray/focals_utils`, settled it:
+the glasses' own Bluetooth schema carries `AncsDeviceStatus`, so the firmware **is** an ANCS
+client and notification mirroring needs no code from us. That repo also proved the firmware
+acts as a BLE central/GATT client, yielded the FCC test report (dual-mode radio: classic
+BR/EDR *and* BLE), and showed from a captured SDP record that the UUID which suggested iAP2
+is really the Focals SPP service's own class — a false lead, now recorded as such. Written
+up as section 10.
+
+**Where that leaves it.** The gate is unchanged, the odds behind it are better, and the
+decisive step got cheaper: whether this can ever be an App Store app or only a sideloaded
+one depends on whether North's iOS app used iAP2 (MFi) or a custom BLE GATT service, and an
+archived copy of that app's `Info.plist` answers it **without hardware**. That is now step
+one, ahead of buying glasses.
+
+**Next.** Find the archived IPA. See `docs/ROADMAP.md`.

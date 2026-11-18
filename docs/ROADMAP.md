@@ -6,25 +6,28 @@ decisions to *not* do something.
 
 ## Now
 
-**Phase 0, and nothing else.** The plan's verdict (`docs/IOS-MIGRATION.md`) is that a
-faithful port is not viable and a reduced sideload-only port is conditional on one
-experiment. That experiment is the entire near-term roadmap:
+The plan's gate is unchanged but its order has: the decisive step no longer needs glasses.
 
-1. **Acquire Focals hardware.** Blocking everything below.
-2. **Determine whether the glasses are an MFi (iAP2) accessory.** The Android code
-   declares an unused `00000000-DECA-FADE-DECA-DEAFDECACAFF` constant, which matches the
-   known iAP2-over-Bluetooth service UUID pattern, and a string elsewhere mentions
-   "on iPhone". If Focals are MFi, `ExternalAccessory` can likely carry the same byte
-   stream once the protocol string is known. If they are not, an iPhone cannot talk to
-   these glasses at all and the project is over.
-3. **Exchange one protocol message from an iPhone** — the handshake and its response.
-   Two to four days of work once there is hardware. Everything past this point is
-   wasted effort until it passes.
-4. **Check whether the firmware is an ANCS client.** Minutes of work on hardware, and it
-   decides whether notification mirroring exists in any form on iOS.
+1. **Find an archived copy of North's iOS app and read its `Info.plist`.** No hardware, and
+   it answers the question the whole project hangs on: `UISupportedExternalAccessoryProtocols`
+   present means iAP2/MFi and sideload-only; absent means a custom BLE GATT companion, Core
+   Bluetooth, no MFi, and App Store distribution back on the table. The app was public until
+   2020-07-31, so copies may survive in old iTunes libraries, device backups or IPA archives.
+   The Android package was `co.glassio`, which is likely the iOS bundle-id prefix too.
+   **Do this before spending money on hardware.**
+2. **Acquire Focals hardware** — still needed for everything past the IPA, and the long-lead
+   item (sold 2019–2020, North America only). Start looking in parallel with 1.
+3. **Scan the glasses' BLE GATT services** with any BLE explorer. Minutes of work, and it
+   tests H2 directly: a companion-grade service beyond the Loop- and ANCS-facing roles is
+   what a custom-BLE port would use.
+4. **Exchange one protocol message from an iPhone**, over whichever path 1 and 3 indicate.
+   Two to four days once there is hardware. Nothing past this point is worth building first.
+5. **Stand up `pycompanion` against the glasses** from a Linux box or a Raspberry Pi. It is
+   the author's working Python companion and the glasses accept it in place of the phone app:
+   cheaper than writing Swift to learn the protocol, and it validates our understanding of
+   framing, handshake, settings and features before any app code exists.
 
-Do not build UI, do not write feature code, do not set up App Store anything before 3
-passes.
+Do not build UI and do not write feature code before 4 passes.
 
 ## Blocked on hardware
 
@@ -48,6 +51,38 @@ that do not need a device.
   instead.
 
 ## Decision register
+
+### 2026-11-17 — Evidence revised the verdict upward; the deciding artifact is an IPA, not hardware
+
+**Decided (analysis).** Two later findings materially improved the outlook recorded in the
+entry below, without changing the gate. Full reasoning in `docs/IOS-MIGRATION.md` sections 9
+and 10.
+
+**What changed.**
+
+- **North shipped an official iOS app**, so an iPhone-to-glasses channel provably existed.
+  That splits the transport question in two: iAP2/MFi (sideload only) versus a custom BLE
+  GATT service (no MFi, App Store possible). The second is now the better-supported reading —
+  the glasses are a confirmed dual-mode radio per their FCC test report, their firmware acts
+  as a BLE central/GATT client, and the captured SDP record shows no iAP2 service advertised.
+- **The custom UUID that suggested iAP2 was a false lead**: `00000000-DECA-FADE-DECA-DEAFDECACAFF`
+  is the Focals SPP service's own service class, not the iAP2 service. Recorded so nobody
+  rebuilds the MFi hypothesis on it.
+- **Notification mirroring is not a blocker and needs no code from us.** The glasses' own
+  Bluetooth schema carries ANCS state (`AncsDeviceStatus`, `AppAttributes{bundleId}`,
+  `AppNotificationBlacklist`, `PerformNotificationAction`), so the firmware is an ANCS client
+  and receives iPhone notifications directly over BLE once paired. The feature expected to be
+  impossible is the one that comes free.
+- **A second repository by the same author, `aegray/focals_utils`, is the better reference**:
+  a working Python companion the glasses accept in place of the phone app, the Bluetooth
+  schema extracted from five official app versions, a procedure for installing a private root
+  CA on rooted glasses (which resolves the expired-certificate problem for that case), the
+  connector-cable and firmware-access notes, and the FCC filings.
+
+**Why it matters.** The decisive experiment is no longer "buy glasses and try to connect". It
+is "find the old iOS app and read one plist", which costs nothing and reorders the roadmap.
+
+**Next step.** Item 1 under "Now".
 
 ### 2026-11-17 — Verdict: no faithful port; Phase 0 gates everything
 
