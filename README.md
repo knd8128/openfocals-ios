@@ -39,3 +39,9 @@ documentation only. See [`docs/UPSTREAM.md`](docs/UPSTREAM.md).
 Development needs real Focals hardware. They were sold only in 2019–2020 and were
 never shipped outside North America, which makes the hardware itself a gating
 constraint on this project rather than a detail.
+
+## Licence
+
+[MIT](LICENSE). The licence covers the work in this repository, which is ours; it says
+nothing about the upstream Android project, whose code is not here. See
+[`docs/UPSTREAM.md`](docs/UPSTREAM.md).

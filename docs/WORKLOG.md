@@ -24,7 +24,8 @@ Newest entry first.
   hardware** — there are no Focals glasses on hand. Every claim in the migration plan
   about how the glasses behave is derived from reading the Android source, not from
   observing a device.
-- The licence for this repository is undecided (see `docs/ROADMAP.md`).
+
+- MIT licence added (Abraham's call), covering our work only.
 
 **Next.** Read the plan's verdict and decide whether to pursue the port, and in what
 scope.

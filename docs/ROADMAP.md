@@ -22,17 +22,25 @@ that do not need a device.
 
 ## Open decisions
 
-- **Licence.** The repository is public but carries no licence yet, which means "all
-  rights reserved" and makes it unfriendly to the community it is aimed at. A
-  permissive licence (MIT) is the obvious default for a community project; it is left
-  open deliberately because the upstream Android project is itself unlicensed, and
-  Abraham should make the call rather than inherit one. Decide before any code ships.
 - **Distribution.** Several of the capabilities this app would need are ones Apple does
   not grant to App Store apps. Whether this ever becomes a store app, a TestFlight
   build, or something a developer sideloads with their own signing, follows from the
   migration plan's verdicts and is not yet decided.
 
 ## Decision register
+
+### 2026-11-17 — MIT licence
+
+**Decided.** The repository is MIT licensed, copyright Abraham Rubio.
+
+**Why.** It is aimed at a community of people whose glasses stopped working, so the
+licence should let them use, fork and ship the result without asking. A public
+repository with no licence is all-rights-reserved by default, which would have been the
+opposite of the point. The upstream Android project being unlicensed does not constrain
+this choice, because none of its code is here — MIT covers our own work only.
+
+**Next step.** None; `LICENSE` is in place and `README.md` and `docs/UPSTREAM.md` say
+what it does and does not cover.
 
 ### 2026-11-17 — Project created as a separate, clean-room repository
 
