@@ -57,3 +57,23 @@ archived copy of that app's `Info.plist` answers it **without hardware**. That i
 one, ahead of buying glasses.
 
 **Next.** Find the archived IPA. See `docs/ROADMAP.md`.
+
+## 2026-11-18 — Tried to retrieve North's iOS companion app from Abraham's Apple ID
+
+Goal: the one artifact that decides H1 vs H2 (iAP2/MFi vs custom BLE GATT), namely the
+`Info.plist` of `id1438872705`.
+
+- `ipatool` 2.8.0 authenticated against `rza8128@hotmail.com`. The login has to happen in a
+  real terminal window — the session's inline shell provides no TTY and `auth login` dies with
+  `failed to read password: failed to configure terminal`.
+- Listed the account's purchases exhaustively: 961 unique bundle ids over 10 pages. No Focals,
+  no North. `download -i 1438872705` → `license is required`. `download --purchase` → Apple's
+  store request fails (`param 'STDQ'`): an app withdrawn from sale cannot be newly acquired.
+- No iPhone reachable over USB (`idevice_id -l` empty), so reading the plist off a device with
+  `ideviceinstaller` was not an option either; the app is offloaded on his phone anyway.
+- Searched all of `focals_utils` for `iap2`/`externalaccessory`/`made for iphone`/`mfi`/
+  `com.apple` (excluding `.git`, `glasses/rootcert/`, the FCC PDFs): zero matches, including
+  the Qt apps that run on the glasses. Weak but H2-leaning.
+
+Recorded as `docs/IOS-MIGRATION.md` §11.5 and a dated entry in `docs/ROADMAP.md`. Next lever is
+the older Apple ID that was signed in when Focals was installed on his iPhone.

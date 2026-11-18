@@ -653,6 +653,38 @@ Apple-related identifiers — `AncsDeviceStatus`, `ancsStatus`, `AncsStatus`, `b
   message read, Android could reply) visible at schema level, which independently corroborates
   that the iOS app drove this same protocol.
 
+### 11.5 Attempt of 2026-11-18: `ipatool` against Abraham's own Apple ID — no licence
+
+`ipatool` 2.8.0 authenticated successfully against the Apple ID **`rza8128@hotmail.com`**
+(the login must be run in a real terminal: the session's inline shell gives no TTY and
+`ipatool auth login` fails with `failed to configure terminal`). Results:
+
+- **The account's full purchase list holds 961 apps and none of them is Focals.** Paginated
+  completely (`list-purchases -l 100 -p 1..10`, 961 unique bundle ids); case-insensitive
+  searches for `focals` and `north` return zero. So this Apple ID never acquired the app.
+- **`download -i 1438872705` fails with `license is required`**, which is the expected answer
+  for an account without the licence rather than evidence about the app itself.
+- **`download --purchase` cannot create one.** Acquiring the free licence fails inside Apple's
+  store request (`failed to purchase item with param 'STDQ'`). An app withdrawn from sale
+  cannot be newly acquired, by any account — this is also what the iPhone reported when tapping
+  the offloaded icon ("The app is no longer available in the App Store").
+
+**Conclusion: the licence must already exist on the Apple ID being used.** The offloaded Focals
+icon still on Abraham's iPhone was installed years ago, and an offloaded icon survives an Apple
+ID change — so the account that holds the licence is whichever Media & Purchases account was
+signed in when Focals was installed, not necessarily the one signed in today. The next attempt
+is `ipatool auth revoke` followed by a login with that older Apple ID. Nothing else about the
+method changes; the §11.2 reasoning (encrypted IPA is enough, `Info.plist` is plaintext) still
+holds, and the §11.1 negative result on public archives is unchanged.
+
+**No iAP2 evidence anywhere in `focals_utils` either** (searched 2026-11-18): a recursive
+case-insensitive search for `iap2`, `externalaccessory`, `made for iphone`, `mfi` and
+`com.apple` across the whole repository — excluding `.git`, the key material in
+`glasses/rootcert/` and the FCC PDFs — returns **zero** matches, including in `glasses/apps/`,
+the Qt/C++ programs the author built to run **on the glasses themselves**. Weak evidence
+(the Android side and the author's own tools would not carry iOS strings even under H1) but it
+points the same way as §11.3.
+
 ### 11.4 Sources
 
 - Archived `bynorth.com` snapshots carrying both App Store links: http://web.archive.org/web/20200301000000/https://www.bynorth.com/

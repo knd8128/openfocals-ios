@@ -24,12 +24,22 @@ The plan's gate is unchanged but its order has: the decisive step no longer need
    - Apple still serves delisted apps to Apple IDs that previously acquired them (free apps
      count), retrievable with `ipatool`.
 
-   So the blocker is social: **one person who installed the Focals app on an iPhone before
-   2020-07-31 can produce the answer in minutes.** Ask the author of `openfocals` and
-   `focals_utils` first — he reverse-engineered the Android side and may simply know, or hold
-   the iOS build — then the openfocals issue tracker and Focals owner communities. Reaching
-   out is free and settles the central question. *(Pending Abraham's go-ahead: contacting
-   people is an outward-facing action.)*
+   **Tried 2026-11-18 with Abraham's own Apple ID `rza8128@hotmail.com`: no licence.** All 961
+   purchases of that account listed, no Focals; `download` answers `license is required`, and
+   `--purchase` cannot create one because the app is withdrawn from sale (section 11.5). The
+   offloaded Focals icon on his iPhone was installed under an **older Apple ID**, and an
+   offloaded icon survives an account change, so the licence lives on that account.
+
+   **Next step, in order:**
+   a. `ipatool auth revoke`, then `ipatool auth login -e <the older Apple ID>` in Terminal.app
+      (the session's inline shell has no TTY), and retry `download -i 1438872705`. Zero cost,
+      minutes, and it is the only path that does not involve other people.
+   b. If no account of his holds it, the blocker becomes social: **one person who installed the
+      Focals app on an iPhone before 2020-07-31 can produce the answer in minutes.** Ask the
+      author of `openfocals` and `focals_utils` first — he reverse-engineered the Android side
+      and may simply know, or hold the iOS build — then the openfocals issue tracker and Focals
+      owner communities. *(Pending Abraham's go-ahead: contacting people is an outward-facing
+      action.)*
 2. **Acquire Focals hardware** — still needed for everything past the IPA, and the long-lead
    item (sold 2019–2020, North America only). Start looking in parallel with 1.
 3. **Scan the glasses' BLE GATT services** with any BLE explorer. Minutes of work, and it
@@ -66,6 +76,20 @@ that do not need a device.
   instead.
 
 ## Decision register
+
+### 2026-11-18 — The IPA is not on Abraham's current Apple ID; one older account left to try
+
+**Decided:** keep the IPA as step 1 of *Now*, but split it into a free local attempt (another
+Apple ID of his) before any outward-facing request. **Why:** `ipatool` authenticated fine but
+the account `rza8128@hotmail.com` holds no Focals licence across all 961 of its purchases, and
+Apple will not grant a new one for an app withdrawn from sale, so the remaining local lever is
+the Apple ID that was signed in when the app was first installed. **Next step:** `auth revoke`,
+log in with that account, retry. **Status:** agreed. Evidence in `docs/IOS-MIGRATION.md` §11.5.
+
+**Also decided:** do not look for iAP2 evidence in `focals_utils` again. A full search for
+`iap2`/`externalaccessory`/`mfi`/`com.apple` returns zero, including the glasses-side Qt apps;
+it is weak evidence for H2 and the well is dry.
+
 
 ### 2026-11-17 — Evidence revised the verdict upward; the deciding artifact is an IPA, not hardware
 
