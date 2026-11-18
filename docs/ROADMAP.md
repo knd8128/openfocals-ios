@@ -1,5 +1,7 @@
 # Roadmap
 
+Last revision: 2026-11-18.
+
 Priorities first, then the decision register. Every decision, idea and "for later"
 discussed about this project is written here in the session it came up, including the
 decisions to *not* do something.
@@ -68,7 +70,7 @@ that do not need a device.
 
 ## Decision register
 
-### 2026-11-18 — Build macOS first, iOS after it is stable against hardware
+### 2026-11-18 — Build macOS first, iOS after it is stable against hardware ([ADR-0001](adr/0001-one-byte-transport-macos-first.md), [ADR-0002](adr/0002-decode-protobuf-without-generated-types.md))
 
 **Decided (Abraham's call):** write the protocol stack and a macOS tool first, and only
 build the iOS companion once that is stable. **Why:** macOS reaches the glasses over RFCOMM
@@ -87,7 +89,7 @@ a value, so new firmware cannot break it. Revisit when typed readers for the big
 
 
 
-### 2026-11-18 — The transport is settled: ExternalAccessory/iAP2, found on Abraham's own Mac
+### 2026-11-18 — The transport is settled: ExternalAccessory/iAP2, found on Abraham's own Mac ([ADR-0003](adr/0003-development-signed-distribution-only.md))
 
 **Decided:** treat H1 as established and stop hunting the IPA; make hardware the gate.
 **Why:** a Spotlight sweep of the whole Mac turned up `~/Downloads/focals`, the data container

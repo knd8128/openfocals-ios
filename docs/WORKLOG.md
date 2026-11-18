@@ -2,6 +2,100 @@
 
 Newest entry first.
 
+## 2026-11-18 — The transport question answered, and the macOS stack built
+
+**Done.**
+
+Abraham: *"busca el ipa de la app oficial de iOS"* → *"hay alguna forma de bajarla de mi
+cuenta, o dime el bundleid"* → *"busca en todos lados de la mac"* → *"dale, empieza con el
+lado de macOS y ya que sea estable hacemos el companion app de ios"*.
+
+1. **The App Store route, exhausted.** `ipatool` 2.8.0 authenticated against
+   `rza8128@hotmail.com` (the login needs a real terminal; the session shell has no TTY).
+   All 961 purchases of that account listed across 10 pages: no Focals, no North.
+   `download -i 1438872705` → `license is required`; `download --purchase` → Apple refuses
+   (`param 'STDQ'`), because an app withdrawn from sale cannot be newly acquired by anyone.
+   No iPhone reachable over USB either. Commit `bc5cce8`.
+2. **The FCC-photo route, closed.** The glasses' internal photographs were checked for
+   Apple's MFi authentication coprocessor: 1155×866 at 220 ppi, large packages partly
+   legible (an SK hynix die reads), small ICs not. Absence proves nothing; recorded as a
+   dead end so no future session repeats it. Commit `32c3b60`.
+3. **The answer, found on his own Mac.** A Spotlight sweep turned up `~/Downloads/focals`:
+   the **data container of `com.bynorth.companion`**, North's iOS app, extracted from an
+   iPhone backup in May 2025. It stores the companion link as **accessory name + serial
+   number** (`Focals - 00DW` / `1f47080e`) and the ANCS link as a **Core Bluetooth
+   peripheral UUID** — the persistence shapes of `EAAccessory` and `CBPeripheral`
+   respectively, since a CB client must keep the UUID to reconnect and an EA client has no
+   UUID at all. **H1 holds, H2 is dead: the glasses are an MFi accessory and the iOS app
+   spoke iAP2.** Written up as `IOS-MIGRATION.md` §12; commit `f34821b`.
+   - Also recovered: Abraham **owned a pair** (hardware v11, software 1.117.0-4559, last
+     active 2020-06-01), and the signed **OTA package for firmware 1.119.0-4672** — an
+     Android delta OTA for `qcom/msm8909w:7.1.1`, so the glasses are Android 7.1.1 on a
+     Snapdragon Wear 2100, with components `companion_service`, `bt_server`, `auth_service`,
+     `black_coral_simulator`. Its `minBlackCoralProtocolVersion: 4.40` confirms **BC =
+     BlackCoral** and ties the 4.40 handshake to that protocol's own version.
+   - The container was copied to `reference/ios-app-container/` (gitignored) so a Downloads
+     cleanup cannot take it.
+4. **The macOS stack.** `FocalsKit` — `FocalsWire` (LEB128 varints, streaming `FrameReader`,
+   `WireMessage`, schema-less protobuf reader/writer), `FocalsProtocol` (both message tables,
+   the 4.40 handshake, `IncomingMessage`), `FocalsTransport` (`ByteTransport`,
+   `LoopbackTransport`, `RFCOMMTransport` on IOBluetooth), `FocalsLink` (the `GlassesLink`
+   actor) — plus the `focalsctl` tool. Commit `d077b01`.
+
+**Verified for real:** `swift build` clean, **27 tests pass** (`swift test`), and
+`focalsctl devices` enumerated the 13 genuine paired Bluetooth devices on this Mac.
+**Not verified:** no byte has been exchanged with actual glasses. `focalsctl probe` is
+written and has never run. Every protocol claim in `docs/PROTOCOL.md` is unverified against
+hardware and says so.
+
+One real bug found and fixed: the handshake raced its timeout inside a task group, and
+because a `CheckedContinuation` cannot be cancelled the group never finished and the suite
+hung. Replaced with an explicit state machine, which also closed two latent races — the
+reply arriving before the caller parked, and the transport dropping while it waited.
+
+**Decided.**
+
+- **Claude: `ADR-0001` — one `ByteTransport` protocol, macOS RFCOMM first, iOS later.**
+  Abraham's call to do macOS first; the abstraction is what makes it cost nothing.
+- **Claude: `ADR-0002` — no `swift-protobuf`; decode structurally against field-number
+  tables.** The schema is large and only partly known; an unknown field must still decode.
+- **`ADR-0003` — distribution is development-signed only, never the App Store.** Follows
+  from the H1 finding; it is a product decision, not a temporary limitation.
+- **Claude: stop hunting the IPA.** It was only ever a way to learn the accessory protocol
+  string without hardware. The glasses can be asked directly
+  (`EAAccessoryManager` → `protocolStrings`), so the gate is hardware now.
+- **Claude: nothing from `reference/ios-app-container/` is ever committed**, and a rule to
+  that effect was added to `CLAUDE.md`. It holds an expired `id.bynorth.com` JWT with his
+  name and email, a Firebase token and his notification allow-list.
+- **Claude: no upstream code and no copied schema.** Field numbers and framing are facts,
+  written out as our own Swift tables; `docs/PROTOCOL.md` states them in our own words.
+
+**Pending.**
+
+- Pair the glasses and run `swift run focalsctl probe`. First real test of `PROTOCOL.md`.
+- Typed readers for the larger messages, starting with the network tunnel (`socketOpen`,
+  `socketDataChunk`, `getHostByName`). Can be built against `LoopbackTransport` with no
+  hardware.
+- The iOS target, after the macOS side is stable against hardware — `EATransport` beside
+  `RFCOMMTransport`, plus the accessory protocol string in `Info.plist`.
+
+**Blocked.**
+
+- Everything that needs the glasses to power on. They are a 2020 lithium cell that has sat
+  discharged for years and may not revive; that is unknown until Abraham charges them.
+- The accessory protocol string, if the glasses never power on: the only other sources are
+  North's IPA (unobtainable, see above) or a shell on the glasses' Android system.
+
+**Notes.**
+
+- No changes were made outside this repository. Nothing was created, bought, sent or
+  published to any external service this session.
+- `~/Documents/projects/xcode/BLELab` is an earlier attempt of his own (September 2025) that
+  tried Core Bluetooth, documented in its own comments that classic Bluetooth has no iOS
+  API, and never tried `ExternalAccessory`. Not vendored; recorded so it is not rediscovered.
+- `focalsctl devices` also showed a pair of **Even G1** smart glasses paired to this Mac.
+  Unrelated to this project, noted only because it came out of the same run.
+
 ## 2026-11-17 — Project created; Android implementation analysed for an iOS port
 
 **Done.**
@@ -57,92 +151,3 @@ archived copy of that app's `Info.plist` answers it **without hardware**. That i
 one, ahead of buying glasses.
 
 **Next.** Find the archived IPA. See `docs/ROADMAP.md`.
-
-## 2026-11-18 — Tried to retrieve North's iOS companion app from Abraham's Apple ID
-
-Goal: the one artifact that decides H1 vs H2 (iAP2/MFi vs custom BLE GATT), namely the
-`Info.plist` of `id1438872705`.
-
-- `ipatool` 2.8.0 authenticated against `rza8128@hotmail.com`. The login has to happen in a
-  real terminal window — the session's inline shell provides no TTY and `auth login` dies with
-  `failed to read password: failed to configure terminal`.
-- Listed the account's purchases exhaustively: 961 unique bundle ids over 10 pages. No Focals,
-  no North. `download -i 1438872705` → `license is required`. `download --purchase` → Apple's
-  store request fails (`param 'STDQ'`): an app withdrawn from sale cannot be newly acquired.
-- No iPhone reachable over USB (`idevice_id -l` empty), so reading the plist off a device with
-  `ideviceinstaller` was not an option either; the app is offloaded on his phone anyway.
-- Searched all of `focals_utils` for `iap2`/`externalaccessory`/`made for iphone`/`mfi`/
-  `com.apple` (excluding `.git`, `glasses/rootcert/`, the FCC PDFs): zero matches, including
-  the Qt apps that run on the glasses. Weak but H2-leaning.
-
-Recorded as `docs/IOS-MIGRATION.md` §11.5 and a dated entry in `docs/ROADMAP.md`. Next lever is
-the older Apple ID that was signed in when Focals was installed on his iPhone.
-
-## 2026-11-18 (second entry) — The transport question is answered: ExternalAccessory/iAP2
-
-The App Store route to North's IPA was exhausted (see the entry above), so the search widened
-from Apple's servers to the machine itself. A Spotlight sweep for anything Focals-related
-found `~/Downloads/focals`: the **data container of `com.bynorth.companion`**, North's own iOS
-app, extracted from an iPhone backup in May 2025 and forgotten there.
-
-What it settles, in one line: the app persisted the companion link as an **accessory name and
-serial number** and the notification link as a **Core Bluetooth peripheral UUID** — the storage
-shapes of `EAAccessory` and `CBPeripheral`. **H1 holds, H2 is dead.** The glasses are an MFi
-accessory; the App Store is out for good; `EASession` is a supported transport for a
-development-signed build, and the architecture's `ByteTransport` split survives untouched.
-
-Also recovered from the same container:
-
-- the bundle id `com.bynorth.companion`, app 1.114.1 (3377) on iOS 12.4, last active 2020-06-01;
-- **Abraham owned a pair**: `Focals - 00DW`, serial `1f47080e`, hardware v11, software
-  1.117.0-4559. Whether they still exist is now the project's gate;
-- the signed **OTA package for firmware 1.119.0-4672** (8 MB): an Android delta OTA for
-  `qcom/msm8909w:7.1.1`, so the glasses are Android 7.1.1 on a Snapdragon Wear 2100. Patched
-  components include `companion_service`, `bt_server`, `auth_service`, `black_coral_simulator`;
-- `minBlackCoralProtocolVersion: 4.40`, which confirms **BC = BlackCoral** and ties the
-  `versionMajor=4, versionMinor=40` handshake to that protocol's own version number.
-
-The container was copied to `reference/ios-app-container/` (gitignored) so it survives a
-Downloads cleanup, and `CLAUDE.md` gained a rule that nothing from it is ever committed — it
-holds an expired `id.bynorth.com` JWT with his name and email, a Firebase token and his
-notification allow-list.
-
-Written up as `docs/IOS-MIGRATION.md` §12, with a superseding banner on §0. `README.md`'s
-status, the roadmap's *Now* and the decision register were rewritten to match. Also recorded:
-`~/Documents/projects/xcode/BLELab`, an earlier Core Bluetooth attempt of his from September
-2025 that never tried ExternalAccessory — a closed dead end, not vendored.
-
-## 2026-11-18 (third entry) — The macOS side: `FocalsKit` and `focalsctl`
-
-Abraham's call: build macOS first, iOS once it is stable against hardware. macOS reaches the
-glasses over RFCOMM with no MFi, no protocol string and no provisioning, and because the
-transport is one protocol none of the work is wasted when iOS arrives.
-
-Written, from protocol facts only — no upstream code, no copied schema:
-
-- **`FocalsWire`** — LEB128 varints, a streaming `FrameReader` that survives frames split
-  anywhere including mid-prefix, `WireMessage` (the protobuf/bulk-payload split), and a
-  schema-less protobuf reader and writer. The reader means an unknown field decodes as a
-  number and a value instead of breaking, which matters with a schema this partly known.
-- **`FocalsProtocol`** — both message tables as Swift enums (`ToGlasses` 1–50,
-  `ToCompanion` 1–40), the 4.40 `Handshake` and a `HandshakeResponse` reader,
-  and `IncomingMessage` with a structural one-line describe for logging.
-- **`FocalsTransport`** — the `ByteTransport` protocol that the whole iOS question reduces
-  to, a `LoopbackTransport` for tests, and `RFCOMMTransport` on IOBluetooth (SDP lookup of
-  `0x1101`, async channel open, MTU-sized writes).
-- **`FocalsLink`** — the `GlassesLink` actor: opens the transport, pumps frames, performs
-  the handshake, streams everything else up.
-- **`focalsctl`** — `devices` and `probe`.
-
-Verified: `swift build` clean, **27 tests pass**, and `focalsctl devices` enumerated the 13
-real paired Bluetooth devices on this Mac. **No byte has been exchanged with glasses**;
-`focalsctl probe` is written and unrun.
-
-One real bug found and fixed on the way: the handshake raced a timeout inside a task group,
-and because a `CheckedContinuation` is not cancellable the group never finished — the test
-suite hung. Replaced with an explicit state machine (`idle / waiting / settled / done`),
-which also closed two races that were latent in the first version: the reply arriving before
-the caller parked, and the transport dropping while the caller waited.
-
-Protocol written up in `docs/PROTOCOL.md`, in our own words, with the unverified parts
-labelled. `CLAUDE.md` state and the roadmap updated.

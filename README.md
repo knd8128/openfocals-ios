@@ -12,9 +12,11 @@ This project is the attempt to build one.
 
 ## Status
 
-**Analysis done, no application code yet — but the question the project hung on is
-answered.** On 2026-11-18 the data container of North's own iOS companion app turned up on
-the owner's Mac, recovered from an old iPhone backup. It settles the transport.
+**The question the project hung on is answered, and the protocol stack exists on macOS.**
+On 2026-11-18 the data container of North's own iOS companion app turned up on the owner's
+Mac, recovered from an old iPhone backup; it settles the transport. A Swift package and a
+macOS command line tool were written the same day. **No byte has been exchanged with real
+glasses yet** — see *Building and running* below for exactly what is and is not verified.
 
 The analysis is in [`docs/IOS-MIGRATION.md`](docs/IOS-MIGRATION.md); section 12 holds the
 finding and supersedes parts of the earlier verdict.
@@ -51,6 +53,33 @@ What that means in practice:
   string, and a ten-line development build can ask a bonded pair of glasses for it directly
   (`EAAccessoryManager.connectedAccessories` → `protocolStrings`) — which would also turn the
   inference above into fact.
+
+## Building and running
+
+Zero dependencies. Swift 6, macOS 14 or newer.
+
+```
+swift build          # builds FocalsKit and focalsctl
+swift test           # 27 tests, under a second, no hardware needed
+swift run focalsctl  # usage
+```
+
+`FocalsKit` is four modules:
+
+| Module | What it does |
+| --- | --- |
+| `FocalsWire` | varints, frame reassembly, the protobuf/payload split, a schema-less protobuf codec |
+| `FocalsProtocol` | the message tables for both directions, the 4.40 handshake |
+| `FocalsTransport` | `ByteTransport`, plus RFCOMM on macOS and a loopback for tests |
+| `FocalsLink` | `GlassesLink`, the session actor on top of any transport |
+
+`focalsctl devices` lists paired Bluetooth devices; `focalsctl probe` connects, performs the
+handshake and prints everything the glasses send.
+
+**Verified:** the build, the 27 tests, and `focalsctl devices` against real Bluetooth
+hardware. **Not verified:** anything involving actual glasses. `focalsctl probe` has never
+run, and every protocol claim in [`docs/PROTOCOL.md`](docs/PROTOCOL.md) is unconfirmed
+against hardware. See [`docs/TESTING.md`](docs/TESTING.md).
 
 ### What is settled
 

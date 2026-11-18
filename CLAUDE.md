@@ -10,7 +10,9 @@ and the whole shape of this project follows from it.
 - `docs/UPSTREAM.md` — how the Android project is used and the boundary we keep.
 - `docs/ROADMAP.md` — priorities and the decision register. Every decision lands here.
 - `docs/WORKLOG.md` — one entry per session.
-- `docs/adr/` — architecture decision records.
+- `docs/adr/` — architecture decision records, indexed in `docs/adr/README.md`.
+- `docs/PROTOCOL.md` — the wire protocol as this project implements it.
+- `docs/TESTING.md` — how to run the suite, what it covers, and the drill log.
 
 ## Hard rules
 
